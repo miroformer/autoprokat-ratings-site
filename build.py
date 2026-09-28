@@ -215,9 +215,9 @@ def top3_html(rows: list[dict]) -> str:
     return f'<section id="top-3" class="top3">{"".join(cards)}</section>'
 
 
-def trust_html(depth: int, date_human: str, version: str, coverage: int) -> str:
+def trust_html(depth: int, date_human: str, coverage: int) -> str:
     return f"""<section class="card trust">
-  <p>Срез на {e(date_human)}, методика {e(version)}. Участников среза: {coverage}.</p>
+  <p>Срез на {e(date_human)}. Участников: {coverage}.</p>
   <p>Места в таблице не продаются. Таблица — не реклама.</p>
   <p><a href="{e(href(depth, "metodika/"))}">Как считали</a></p>
 </section>"""
@@ -281,7 +281,6 @@ def ranking_body(
     lead: str,
     rows: list[dict],
     date_human: str,
-    version: str,
 ) -> str:
     first = rows[0] if rows else None
     first_line = ""
@@ -294,7 +293,7 @@ def ranking_body(
 <p class="lead">{e(lead)}{first_line}</p>
 {depth_pills()}
 {top3_html(rows)}
-{trust_html(depth, date_human, version, len(rows))}
+{trust_html(depth, date_human, len(rows))}
 {cards_html(rows)}
 {table_html(rows)}"""
 
@@ -486,23 +485,23 @@ def md_to_html(src: str) -> str:
 def build_home(pkg: dict, date_human: str) -> str:
     body = f"""<p class="kicker">Витрина срезов</p>
 <h1>Рейтинги автопрокатов</h1>
-<p class="lead">Публикация готовых срезов. Федерального топа нет. Живой скоринг на этой витрине не считается.</p>
+<p class="lead">Публикация готовых срезов. Федерального топа нет.</p>
 <section class="toc-grid">
   <a class="card link-card" href="{e(href(0, "kaliningrad/"))}">
     <h2>Калининград</h2>
-    <p>Хаб региона. Срез {e(date_human)}. Исследование не опубликовано.</p>
+    <p>Срез {e(date_human)}. Исследование ещё не опубликовано.</p>
   </a>
   <a class="card link-card" href="{e(href(0, "kaliningrad/zaprosy/"))}">
     <h2>Брендовые запросы</h2>
-    <p>Таблица wordstat из среза {e(date_human)}.</p>
+    <p>Рейтинг по поисковым запросам. Срез {e(date_human)}.</p>
   </a>
   <a class="card link-card" href="{e(href(0, "kaliningrad/otzyvy/"))}">
     <h2>Отзовики</h2>
-    <p>Таблица reviews из среза {e(date_human)}.</p>
+    <p>Рейтинг по картам и отзывам. Срез {e(date_human)}.</p>
   </a>
   <a class="card link-card" href="{e(href(0, "metodika/"))}">
     <h2>Методика</h2>
-    <p>Формулы запросов и отзовиков. Свод исследования не опубликован.</p>
+    <p>Как считали запросы и отзовики.</p>
   </a>
 </section>"""
     return page(0, "Рейтинги автопрокатов", "home", date_human, body)
@@ -511,15 +510,15 @@ def build_home(pkg: dict, date_human: str) -> str:
 def build_hub(pkg: dict, date_human: str) -> str:
     body = f"""<p class="kicker">Калининград</p>
 <h1>Автопрокаты Калининграда</h1>
-<p class="lead">Срез {e(date_human)}, методика {e(pkg["methodology_version"])}. Исследование не завершено — свод не опубликован, мест и баллов на этой странице нет.</p>
+<p class="lead">Срез {e(date_human)}. Исследование ещё не опубликовано — мест и баллов на этой странице нет.</p>
 <section class="link-grid">
   <a class="card link-card" href="{e(href(1, "kaliningrad/zaprosy/"))}">
     <h2>Брендовые запросы</h2>
-    <p>Рейтинг по Wordstat из среза.</p>
+    <p>Рейтинг по поисковым запросам.</p>
   </a>
   <a class="card link-card" href="{e(href(1, "kaliningrad/otzyvy/"))}">
     <h2>Отзовики</h2>
-    <p>Рейтинг по картам и отзывам из среза.</p>
+    <p>Рейтинг по картам и отзывам.</p>
   </a>
   <a class="card link-card" href="{e(href(1, "metodika/"))}">
     <h2>Методика</h2>
@@ -534,16 +533,16 @@ def build_metodika(date_human: str) -> str:
     reviews = md_to_html((DATA / "reviews-method-description.md").read_text(encoding="utf-8"))
     body = f"""<p class="kicker">Методика</p>
 <h1>Как считали</h1>
-<p class="lead">Формулы скоринг-проекта. Витрина их не пересчитывает. Срез {e(date_human)}.</p>
-<section class="card method" id="wordstat">
+<p class="lead">Срез {e(date_human)}.</p>
+<section class="card method" id="zaprosy">
 {wordstat}
 </section>
-<section class="card method" id="reviews">
+<section class="card method" id="otzyvy">
 {reviews}
 </section>
-<section class="card method" id="research">
+<section class="card method" id="issledovanie">
 <h2>Исследование</h2>
-<p>Свод не опубликован. Таблицу мест исследования на сайт не выводим.</p>
+<p>Исследование ещё не опубликовано.</p>
 </section>"""
     return page(1, "Методика — рейтинги автопрокатов", "metodika", date_human, body)
 
@@ -551,7 +550,6 @@ def build_metodika(date_human: str) -> str:
 def main() -> None:
     pkg = load_package()
     date_human = format_date(pkg["as_of"])
-    version = pkg["methodology_version"]
     tables = pkg.get("tables") or {}
 
     wordstat = normalize_rows(tables.get("wordstat"))
@@ -571,10 +569,9 @@ def main() -> None:
                 2,
                 "Рейтинг брендовых запросов",
                 "Калининград, брендовые запросы",
-                f"Срез {date_human}, методика {version}. Участники — из JSON-пакета.",
+                f"Срез {date_human}.",
                 wordstat,
                 date_human,
-                version,
             ),
         ),
     )
@@ -589,10 +586,9 @@ def main() -> None:
                 2,
                 "Рейтинг по отзовикам",
                 "Калининград, отзовики",
-                f"Срез {date_human}, методика {version}. Участники — из JSON-пакета.",
+                f"Срез {date_human}.",
                 reviews,
                 date_human,
-                version,
             ),
         ),
     )
