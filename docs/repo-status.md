@@ -21,6 +21,8 @@ Cursor Origin-репо для этой витрины **нет** (на акка�
 
 Стор `docs/` + `media/` скопированы в этот репозиторий, commit на `main`, push `origin` (GitHub). Веса Калининграда не трогали, баллы не выдумывали. Сайт не собирали.
 
+Коммит: [0d85698](https://github.com/miroformer/autoprokat-ratings-site/commit/0d8569859a2acce8d8a94ef4c5152d3f58b6bb02)
+
 ## Локально
 
 - Путь: `/Users/ac/Projects/autoprokat-ratings-site`
