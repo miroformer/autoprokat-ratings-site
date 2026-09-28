@@ -10,7 +10,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data" / "site-export"
-PUBLISHER = "ООО «Рентпрог»"
 MONTHS = {
     1: "января",
     2: "февраля",
@@ -24,6 +23,22 @@ MONTHS = {
     10: "октября",
     11: "ноября",
     12: "декабря",
+}
+
+TEX_SYMBOLS = {
+    "mu": "μ",
+    "alpha": "α",
+    "beta": "β",
+    "gamma": "γ",
+    "delta": "δ",
+    "pi": "π",
+    "sigma": "σ",
+    "infty": "∞",
+    "times": "×",
+    "pm": "±",
+    "leq": "≤",
+    "geq": "≥",
+    "neq": "≠",
 }
 
 # Banner slot exists in layout (CSS comment). Empty → do not render.
@@ -42,10 +57,13 @@ def format_date(as_of: str) -> str:
 def format_score(score) -> str | None:
     if score is None:
         return None
-    if isinstance(score, bool) or not isinstance(score, (int, float)):
+    if isinstance(score, bool):
         return None
-    text = f"{score:.6f}".rstrip("0").rstrip(".")
-    return text or "0"
+    if isinstance(score, str):
+        return score
+    if isinstance(score, (int, float)):
+        return json.dumps(score)
+    return None
 
 
 def company_id_of(row: dict) -> str | None:
@@ -91,7 +109,7 @@ def normalize_rows(raw_rows) -> list[dict]:
 
 def load_package() -> dict:
     path = DATA / "package-2026-09-26.json"
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8"), parse_float=lambda x: x)
 
 
 def css_href(depth: int) -> str:
@@ -143,7 +161,7 @@ def header(depth: int, active: str, date_human: str) -> str:
 def footer(depth: int) -> str:
     return f"""<footer class="site-footer">
   <div class="wrap">
-    Издатель {e(PUBLISHER)}. Витрина публикует срез, рейтинги здесь не считает.
+    Витрина публикует срез, рейтинги здесь не считает.
     <a href="{e(href(depth, "metodika/"))}">Методика</a>.
   </div>
 </footer>"""
@@ -199,7 +217,7 @@ def top3_html(rows: list[dict]) -> str:
 
 def trust_html(depth: int, date_human: str, version: str, coverage: int) -> str:
     return f"""<section class="card trust">
-  <p>Издатель {e(PUBLISHER)}. Срез на {e(date_human)}, методика {e(version)}. Участников среза: {coverage}.</p>
+  <p>Срез на {e(date_human)}, методика {e(version)}. Участников среза: {coverage}.</p>
   <p>Места в таблице не продаются. Таблица — не реклама.</p>
   <p><a href="{e(href(depth, "metodika/"))}">Как считали</a></p>
 </section>"""
@@ -226,11 +244,10 @@ def cards_html(rows: list[dict]) -> str:
 
 
 def table_html(rows: list[dict]) -> str:
-    rest = [r for r in rows if r["place"] > 3]
-    if not rest:
+    if not rows:
         return ""
     body_rows = []
-    for row in rest:
+    for row in rows:
         row_id = ""
         if row["place"] == 5:
             row_id = ' id="top-5"'
@@ -243,7 +260,8 @@ def table_html(rows: list[dict]) -> str:
             f"<td>{e(row['name'])}</td>"
             f"<td class=\"num\">{score_cell}</td></tr>"
         )
-    return f"""<section class="card table-block">
+    return f"""<section class="card table-block" id="full-list">
+  <h2>Все участники среза</h2>
   <div class="table-scroll">
     <table>
       <thead><tr><th class="num">Место</th><th>Компания</th><th class="num">Балл</th></tr></thead>
@@ -289,6 +307,114 @@ def md_inline(text: str) -> str:
     return text
 
 
+def tex_to_html(tex: str) -> str:
+    s = tex.strip()
+    n = len(s)
+    i = 0
+    out: list[str] = []
+
+    def parse_group() -> str:
+        nonlocal i
+        if i >= n or s[i] != "{":
+            return ""
+        i += 1
+        start = i
+        depth = 1
+        while i < n and depth:
+            if s[i] == "{":
+                depth += 1
+            elif s[i] == "}":
+                depth -= 1
+            i += 1
+        return tex_to_html(s[start : i - 1])
+
+    while i < n:
+        if s.startswith(r"\frac", i):
+            i += 5
+            while i < n and s[i].isspace():
+                i += 1
+            num = parse_group()
+            while i < n and s[i].isspace():
+                i += 1
+            den = parse_group()
+            out.append(
+                '<span class="frac">'
+                f'<span class="frac-num">{num}</span>'
+                f'<span class="frac-den">{den}</span>'
+                "</span>"
+            )
+            continue
+        if s.startswith(r"\mathrm", i):
+            i += 7
+            while i < n and s[i].isspace():
+                i += 1
+            out.append(f'<span class="mathrm">{parse_group()}</span>')
+            continue
+        if s.startswith(r"\ln", i) and (i + 3 == n or not s[i + 3].isalpha()):
+            i += 3
+            out.append('<span class="mathrm">ln</span>')
+            continue
+        if s.startswith(r"\sum", i):
+            i += 4
+            out.append("∑")
+            continue
+        if s.startswith(r"\cdot", i):
+            i += 5
+            while i < n and s[i].isspace():
+                i += 1
+            out.append("·")
+            continue
+        if s.startswith(r"\bigl", i) or s.startswith(r"\bigr", i):
+            i += 5
+            continue
+        if s.startswith(r"\qquad", i):
+            i += 6
+            out.append('<span class="math-gap"></span>')
+            continue
+        if s.startswith(r"\,", i):
+            i += 2
+            out.append("\u2009")
+            continue
+        if s[i] == "_" and i + 1 < n:
+            i += 1
+            if s[i] == "{":
+                out.append(f"<sub>{parse_group()}</sub>")
+            else:
+                out.append(f"<sub>{e(s[i])}</sub>")
+                i += 1
+            continue
+        if s.startswith("{,}", i):
+            i += 3
+            out.append(",")
+            continue
+        if s[i] == "{":
+            out.append(parse_group())
+            continue
+        if s[i] == "\\":
+            i += 1
+            m = re.match(r"[A-Za-z]+", s[i:])
+            if m:
+                name = m.group(0)
+                i += len(name)
+                out.append(e(TEX_SYMBOLS.get(name, name)))
+            elif i < n:
+                out.append(e(s[i]))
+                i += 1
+            continue
+        j = i
+        while j < n and s[j] not in "\\_{}":
+            j += 1
+        out.append(e(s[i:j]))
+        i = j
+    return "".join(out)
+
+
+def formula_html(tex: str, display: bool) -> str:
+    inner = tex_to_html(tex)
+    cls = "formula" if display else "formula inline"
+    return f'<span class="{cls}" role="math">{inner}</span>'
+
+
 def md_to_html(src: str) -> str:
     src = src.replace("\r\n", "\n").strip()
     chunks: list[str] = []
@@ -297,8 +423,7 @@ def md_to_html(src: str) -> str:
         inner = match.group(1).strip()
         idx = len(chunks)
         display = match.group(0).startswith("\\[")
-        cls = "math" if display else "math inline"
-        chunks.append(f'<span class="{cls}">{e(inner)}</span>')
+        chunks.append(formula_html(inner, display))
         return f"@@MATH{idx}@@"
 
     src = re.sub(r"\\\[(.+?)\\\]", take_math, src, flags=re.S)
@@ -361,7 +486,7 @@ def md_to_html(src: str) -> str:
 def build_home(pkg: dict, date_human: str) -> str:
     body = f"""<p class="kicker">Витрина срезов</p>
 <h1>Рейтинги автопрокатов</h1>
-<p class="lead">Публикация готовых срезов. Издатель {e(PUBLISHER)}. Федерального топа нет. Живой скоринг на этой витрине не считается.</p>
+<p class="lead">Публикация готовых срезов. Федерального топа нет. Живой скоринг на этой витрине не считается.</p>
 <section class="toc-grid">
   <a class="card link-card" href="{e(href(0, "kaliningrad/"))}">
     <h2>Калининград</h2>
@@ -386,7 +511,7 @@ def build_home(pkg: dict, date_human: str) -> str:
 def build_hub(pkg: dict, date_human: str) -> str:
     body = f"""<p class="kicker">Калининград</p>
 <h1>Автопрокаты Калининграда</h1>
-<p class="lead">Издатель {e(PUBLISHER)}. Срез {e(date_human)}, методика {e(pkg["methodology_version"])}. Исследование не завершено — свод не опубликован, мест и баллов на этой странице нет.</p>
+<p class="lead">Срез {e(date_human)}, методика {e(pkg["methodology_version"])}. Исследование не завершено — свод не опубликован, мест и баллов на этой странице нет.</p>
 <section class="link-grid">
   <a class="card link-card" href="{e(href(1, "kaliningrad/zaprosy/"))}">
     <h2>Брендовые запросы</h2>

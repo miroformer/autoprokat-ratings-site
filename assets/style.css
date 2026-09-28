@@ -234,6 +234,11 @@ h1 {
 
 .table-block { margin: 0 0 1.5rem; }
 
+.table-block h2 {
+  margin: 0 0 0.85rem;
+  font-size: 1.15rem;
+}
+
 .table-scroll { overflow-x: auto; }
 
 table {
@@ -312,24 +317,60 @@ tr:hover td { background: rgba(239, 182, 86, 0.04); }
   color: var(--muted);
 }
 
-.math {
+.formula {
   display: block;
   overflow-x: auto;
   margin: 0.6rem 0 1rem;
-  padding: 0.75rem 1rem;
+  padding: 0.9rem 1rem;
   background: rgba(22, 13, 7, 0.55);
   border-radius: 0.75rem;
   color: var(--text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.9rem;
-  white-space: pre-wrap;
+  font-family: "Cambria Math", "Times New Roman", serif;
+  font-size: 1.15rem;
+  font-style: italic;
+  line-height: 1.45;
+  text-align: center;
 }
 
-.math.inline {
+.formula.inline {
   display: inline;
-  padding: 0.05rem 0.3rem;
-  margin: 0 0.1rem;
+  padding: 0 0.12em;
+  margin: 0;
+  background: none;
+  border-radius: 0;
+  font-size: 1.05em;
   white-space: nowrap;
+}
+
+.frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  font-style: italic;
+}
+
+.frac-num,
+.frac-den {
+  padding: 0.05em 0.4em;
+  text-align: center;
+}
+
+.frac-num {
+  border-bottom: 1px solid currentColor;
+}
+
+.mathrm {
+  font-style: normal;
+}
+
+.formula sub {
+  font-size: 0.72em;
+}
+
+.math-gap {
+  display: inline-block;
+  width: 1.5rem;
 }
 
 .site-footer {
