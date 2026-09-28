@@ -150,7 +150,7 @@ def header(depth: int, active: str, date_human: str) -> str:
       <span class="logo-tile">{logo_svg()}</span>
       <span class="brand-text">
         <span class="brand-name">Рейтинги автопрокатов</span>
-        <span class="brand-sub">срез {e(date_human)}</span>
+        <span class="brand-sub">на {e(date_human)}</span>
       </span>
     </a>
     <nav class="pill-nav" aria-label="Разделы">{"".join(pills)}</nav>
@@ -161,7 +161,7 @@ def header(depth: int, active: str, date_human: str) -> str:
 def footer(depth: int) -> str:
     return f"""<footer class="site-footer">
   <div class="wrap">
-    Витрина публикует срез, рейтинги здесь не считает.
+    Витрина публикует готовые рейтинги, здесь их не считает.
     <a href="{e(href(depth, "metodika/"))}">Методика</a>.
   </div>
 </footer>"""
@@ -215,9 +215,9 @@ def top3_html(rows: list[dict]) -> str:
     return f'<section id="top-3" class="top3">{"".join(cards)}</section>'
 
 
-def trust_html(depth: int, date_human: str, coverage: int) -> str:
+def trust_html(depth: int, date_human: str) -> str:
     return f"""<section class="card trust">
-  <p>Срез на {e(date_human)}. Участников: {coverage}.</p>
+  <p>На {e(date_human)}.</p>
   <p>Места в таблице не продаются. Таблица — не реклама.</p>
   <p><a href="{e(href(depth, "metodika/"))}">Как считали</a></p>
 </section>"""
@@ -261,7 +261,7 @@ def table_html(rows: list[dict]) -> str:
             f"<td class=\"num\">{score_cell}</td></tr>"
         )
     return f"""<section class="card table-block" id="full-list">
-  <h2>Все участники среза</h2>
+  <h2>Полный список</h2>
   <div class="table-scroll">
     <table>
       <thead><tr><th class="num">Место</th><th>Компания</th><th class="num">Балл</th></tr></thead>
@@ -270,7 +270,7 @@ def table_html(rows: list[dict]) -> str:
       </tbody>
     </table>
   </div>
-  <p class="table-note">Места в таблице не продаются. Таблица — не реклама. Срез на дату. «Все» = участники среза, не весь рынок.</p>
+  <p class="table-note">Места в таблице не продаются. Таблица — не реклама.</p>
 </section>"""
 
 
@@ -293,7 +293,7 @@ def ranking_body(
 <p class="lead">{e(lead)}{first_line}</p>
 {depth_pills()}
 {top3_html(rows)}
-{trust_html(depth, date_human, len(rows))}
+{trust_html(depth, date_human)}
 {cards_html(rows)}
 {table_html(rows)}"""
 
@@ -483,21 +483,21 @@ def md_to_html(src: str) -> str:
 
 
 def build_home(pkg: dict, date_human: str) -> str:
-    body = f"""<p class="kicker">Витрина срезов</p>
+    body = f"""<p class="kicker">Оглавление</p>
 <h1>Рейтинги автопрокатов</h1>
-<p class="lead">Публикация готовых срезов. Федерального топа нет.</p>
+<p class="lead">Готовые рейтинги. Федерального топа нет.</p>
 <section class="toc-grid">
   <a class="card link-card" href="{e(href(0, "kaliningrad/"))}">
     <h2>Калининград</h2>
-    <p>Срез {e(date_human)}. Исследование ещё не опубликовано.</p>
+    <p>На {e(date_human)}. Исследование ещё не опубликовано.</p>
   </a>
   <a class="card link-card" href="{e(href(0, "kaliningrad/zaprosy/"))}">
     <h2>Брендовые запросы</h2>
-    <p>Рейтинг по поисковым запросам. Срез {e(date_human)}.</p>
+    <p>Рейтинг по поисковым запросам. На {e(date_human)}.</p>
   </a>
   <a class="card link-card" href="{e(href(0, "kaliningrad/otzyvy/"))}">
     <h2>Отзовики</h2>
-    <p>Рейтинг по картам и отзывам. Срез {e(date_human)}.</p>
+    <p>Рейтинг по картам и отзывам. На {e(date_human)}.</p>
   </a>
   <a class="card link-card" href="{e(href(0, "metodika/"))}">
     <h2>Методика</h2>
@@ -510,7 +510,7 @@ def build_home(pkg: dict, date_human: str) -> str:
 def build_hub(pkg: dict, date_human: str) -> str:
     body = f"""<p class="kicker">Калининград</p>
 <h1>Автопрокаты Калининграда</h1>
-<p class="lead">Срез {e(date_human)}. Исследование ещё не опубликовано — мест и баллов на этой странице нет.</p>
+<p class="lead">На {e(date_human)}. Исследование ещё не опубликовано — мест и баллов на этой странице нет.</p>
 <section class="link-grid">
   <a class="card link-card" href="{e(href(1, "kaliningrad/zaprosy/"))}">
     <h2>Брендовые запросы</h2>
@@ -533,7 +533,7 @@ def build_metodika(date_human: str) -> str:
     reviews = md_to_html((DATA / "reviews-method-description.md").read_text(encoding="utf-8"))
     body = f"""<p class="kicker">Методика</p>
 <h1>Как считали</h1>
-<p class="lead">Срез {e(date_human)}.</p>
+<p class="lead">На {e(date_human)}.</p>
 <section class="card method" id="zaprosy">
 {wordstat}
 </section>
@@ -569,7 +569,7 @@ def main() -> None:
                 2,
                 "Рейтинг брендовых запросов",
                 "Калининград, брендовые запросы",
-                f"Срез {date_human}.",
+                f"На {date_human}.",
                 wordstat,
                 date_human,
             ),
@@ -586,7 +586,7 @@ def main() -> None:
                 2,
                 "Рейтинг по отзовикам",
                 "Калининград, отзовики",
-                f"Срез {date_human}.",
+                f"На {date_human}.",
                 reviews,
                 date_human,
             ),
