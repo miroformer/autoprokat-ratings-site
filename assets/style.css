@@ -79,7 +79,12 @@ a:hover { text-decoration: underline; }
 
 .logo-tile svg { display: block; }
 
-.brand-text { min-width: 0; }
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
 
 .brand-name {
   font-weight: 700;
@@ -88,7 +93,7 @@ a:hover { text-decoration: underline; }
 
 .brand-sub {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
 }
 
 .pill-nav {
@@ -159,6 +164,10 @@ h1 {
   gap: 0.4rem;
   margin: 0 0 1.5rem;
   overflow-x: auto;
+}
+
+.depth-pills .pill {
+  border-color: var(--border);
 }
 
 .card {
@@ -346,4 +355,6 @@ tr:hover td { background: rgba(239, 182, 86, 0.04); }
   }
 
   .pill-nav { width: 100%; }
+
+  .brand-sub { display: none; }
 }
