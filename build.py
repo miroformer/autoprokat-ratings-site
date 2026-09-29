@@ -44,6 +44,26 @@ TEX_SYMBOLS = {
 # Banner slot exists in layout (CSS comment). Empty → do not render.
 BANNER_HTML = ""
 
+# Public origin for canonical / sitemap / robots. No <base href>:
+# it would rewrite relative CSS and nav links on nested pages.
+SITE_ORIGIN = "https://miroformer.github.io/autoprokat-ratings-site"
+
+INDEX_PATHS = (
+    "",
+    "kaliningrad/",
+    "kaliningrad/zaprosy/",
+    "kaliningrad/otzyvy/",
+    "metodika/",
+)
+
+# Счётчики: ID нет — валидный код Метрики/GA не вставляем.
+# Владелец: какой номер Яндекс.Метрики?
+COUNTERS_HTML = """<!-- Счётчики. Номера нет — живой код не ставим.
+     Владелец: какой номер Яндекс.Метрики?
+     После номера — официальный сниппет Метрики сюда, перед </body>.
+     GA (gtag): только если решите включать; Measurement ID не выдумывать. -->
+"""
+
 
 def e(value) -> str:
     return html.escape("" if value is None else str(value), quote=True)
@@ -122,6 +142,12 @@ def href(depth: int, path: str) -> str:
     return "../" * depth + path
 
 
+def abs_url(path: str) -> str:
+    if not path:
+        return SITE_ORIGIN + "/"
+    return SITE_ORIGIN + "/" + path.lstrip("/")
+
+
 def logo_svg() -> str:
     return (
         '<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">'
@@ -167,7 +193,16 @@ def footer(depth: int) -> str:
 </footer>"""
 
 
-def page(depth: int, title: str, active: str, date_human: str, body: str) -> str:
+def page(
+    depth: int,
+    title: str,
+    active: str,
+    date_human: str,
+    body: str,
+    *,
+    description: str,
+    canonical_path: str,
+) -> str:
     banner = BANNER_HTML
     return f"""<!DOCTYPE html>
 <html lang="ru">
@@ -175,6 +210,8 @@ def page(depth: int, title: str, active: str, date_human: str, body: str) -> str
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{e(title)}</title>
+  <meta name="description" content="{e(description)}">
+  <link rel="canonical" href="{e(abs_url(canonical_path))}">
   <link rel="stylesheet" href="{e(css_href(depth))}">
 </head>
 <body>
@@ -183,7 +220,7 @@ def page(depth: int, title: str, active: str, date_human: str, body: str) -> str
 {body}
 </main>
 {footer(depth)}
-</body>
+{COUNTERS_HTML}</body>
 </html>
 """
 
@@ -191,6 +228,34 @@ def page(depth: int, title: str, active: str, date_human: str, body: str) -> str
 def write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def write_robots() -> None:
+    write(
+        ROOT / "robots.txt",
+        "User-agent: *\n"
+        "Allow: /\n"
+        "\n"
+        f"Sitemap: {SITE_ORIGIN}/sitemap.xml\n",
+    )
+
+
+def write_sitemap(as_of: str) -> None:
+    blocks = []
+    for path in INDEX_PATHS:
+        blocks.append(
+            "  <url>\n"
+            f"    <loc>{e(abs_url(path))}</loc>\n"
+            f"    <lastmod>{e(as_of)}</lastmod>\n"
+            "  </url>"
+        )
+    write(
+        ROOT / "sitemap.xml",
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(blocks)
+        + "\n</urlset>\n",
+    )
 
 
 def depth_pills() -> str:
@@ -504,7 +569,15 @@ def build_home(pkg: dict, date_human: str) -> str:
     <p>Как считали запросы и отзовики.</p>
   </a>
 </section>"""
-    return page(0, "Рейтинги автопрокатов", "home", date_human, body)
+    return page(
+        0,
+        f"Рейтинги автопрокатов — {date_human}",
+        "home",
+        date_human,
+        body,
+        description=f"Витрина рейтингов автопрокатов. Калининград, на {date_human}. Федерального топа нет.",
+        canonical_path="",
+    )
 
 
 def build_hub(pkg: dict, date_human: str) -> str:
@@ -525,7 +598,18 @@ def build_hub(pkg: dict, date_human: str) -> str:
     <p>Как считали запросы и отзовики.</p>
   </a>
 </section>"""
-    return page(1, "Калининград — рейтинги автопрокатов", "hub", date_human, body)
+    return page(
+        1,
+        f"Автопрокаты Калининграда — {date_human}",
+        "hub",
+        date_human,
+        body,
+        description=(
+            f"Рейтинги автопрокатов Калининграда на {date_human}. "
+            "Исследование ещё не опубликовано. Есть рейтинги по брендовым запросам и по отзовикам."
+        ),
+        canonical_path="kaliningrad/",
+    )
 
 
 def build_metodika(date_human: str) -> str:
@@ -544,7 +628,17 @@ def build_metodika(date_human: str) -> str:
 <h2>Исследование</h2>
 <p>Исследование ещё не опубликовано.</p>
 </section>"""
-    return page(1, "Методика — рейтинги автопрокатов", "metodika", date_human, body)
+    return page(
+        1,
+        f"Методика рейтингов автопрокатов — {date_human}",
+        "metodika",
+        date_human,
+        body,
+        description=(
+            f"Как считали рейтинги автопрокатов Калининграда по запросам и отзовикам. На {date_human}."
+        ),
+        canonical_path="metodika/",
+    )
 
 
 def main() -> None:
@@ -562,7 +656,7 @@ def main() -> None:
         ROOT / "kaliningrad" / "zaprosy" / "index.html",
         page(
             2,
-            "Рейтинг брендовых запросов — Калининград",
+            f"Рейтинг брендовых запросов — Калининград, {date_human}",
             "zaprosy",
             date_human,
             ranking_body(
@@ -573,13 +667,17 @@ def main() -> None:
                 wordstat,
                 date_human,
             ),
+            description=(
+                f"Рейтинг автопрокатов Калининграда по брендовым поисковым запросам. На {date_human}."
+            ),
+            canonical_path="kaliningrad/zaprosy/",
         ),
     )
     write(
         ROOT / "kaliningrad" / "otzyvy" / "index.html",
         page(
             2,
-            "Рейтинг по отзовикам — Калининград",
+            f"Рейтинг по отзовикам — Калининград, {date_human}",
             "otzyvy",
             date_human,
             ranking_body(
@@ -590,9 +688,15 @@ def main() -> None:
                 reviews,
                 date_human,
             ),
+            description=(
+                f"Рейтинг автопрокатов Калининграда по картам и отзывам. На {date_human}."
+            ),
+            canonical_path="kaliningrad/otzyvy/",
         ),
     )
     write(ROOT / "metodika" / "index.html", build_metodika(date_human))
+    write_robots()
+    write_sitemap(pkg["as_of"])
     print("built", len(wordstat), "wordstat rows,", len(reviews), "reviews rows")
 
 
