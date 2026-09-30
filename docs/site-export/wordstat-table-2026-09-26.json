@@ -1,0 +1,119 @@
+{
+  "as_of": "2026-09-26",
+  "methodology_version": "v3",
+  "region": "kaliningrad",
+  "tables": {
+    "wordstat": [
+      {
+        "id": "amigo",
+        "name": "Амиго",
+        "rank": 1,
+        "score": 1.0,
+        "pros": [],
+        "cons": [],
+        "texts_pending": true,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "id": "city-rent",
+        "name": "Сити рент",
+        "rank": 2,
+        "score": 0.996542,
+        "pros": [],
+        "cons": [],
+        "texts_pending": true,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "id": "lite-rent",
+        "name": "Lite Rent",
+        "rank": 3,
+        "score": 0.988909,
+        "pros": [],
+        "cons": [],
+        "texts_pending": true,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "id": "amber-car",
+        "name": "Амбер кар рент",
+        "rank": 4,
+        "score": 0.920394,
+        "pros": [],
+        "cons": [],
+        "texts_pending": true,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "id": "a-prokat",
+        "name": "А прокат",
+        "rank": 5,
+        "score": 0.912039,
+        "pros": [],
+        "cons": [],
+        "texts_pending": true,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "id": "trip-rent",
+        "name": "Трип рент",
+        "rank": 6,
+        "score": 0.895392,
+        "pros": [],
+        "cons": [],
+        "texts_pending": true,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "id": "spk",
+        "name": "СПК",
+        "rank": 7,
+        "score": 0.874866,
+        "pros": [],
+        "cons": [],
+        "texts_pending": true,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "id": "kenig-rent",
+        "name": "Кениг рент",
+        "rank": 8,
+        "score": 0.843028,
+        "pros": [],
+        "cons": [],
+        "texts_pending": true,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "id": "pavlov",
+        "name": "Павлов",
+        "rank": 9,
+        "score": 0.824342,
+        "pros": [],
+        "cons": [],
+        "texts_pending": true,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "id": "amber-rent",
+        "name": "Амбер рент",
+        "rank": 10,
+        "score": 0.823634,
+        "pros": [],
+        "cons": [],
+        "texts_pending": true,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      }
+    ]
+  }
+}
