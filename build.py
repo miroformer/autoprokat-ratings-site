@@ -41,12 +41,13 @@ TEX_SYMBOLS = {
     "neq": "≠",
 }
 
-# Banner slot exists in layout (CSS comment). Empty → do not render.
+# Banner slot exists in layout (CSS comment). Empty → do not render markup.
 BANNER_HTML = ""
 
-# Public origin for canonical / sitemap / robots. No <base href>:
-# it would rewrite relative CSS and nav links on nested pages.
-SITE_ORIGIN = "https://miroformer.github.io/autoprokat-ratings-site"
+# Production origin is unknown — do not invent a domain.
+# Empty means GitHub Pages preview: noindex, no sitemap, no canonical-as-prod.
+PROD_ORIGIN = ""
+PREVIEW_ORIGIN = "https://miroformer.github.io/autoprokat-ratings-site"
 
 INDEX_PATHS = (
     "",
@@ -56,13 +57,27 @@ INDEX_PATHS = (
     "metodika/",
 )
 
-# Счётчики: ID нет — валидный код Метрики/GA не вставляем.
-# Владелец: какой номер Яндекс.Метрики?
-COUNTERS_HTML = """<!-- Счётчики. Номера нет — живой код не ставим.
-     Владелец: какой номер Яндекс.Метрики?
-     После номера — официальный сниппет Метрики сюда, перед </body>.
-     GA (gtag): только если решите включать; Measurement ID не выдумывать. -->
-"""
+# Research table is unpublished. Never render it on pages, even if JSON has the key.
+RESEARCH_PUBLISHED = False
+
+COMPANY_ID_RE = re.compile(r"^[a-z0-9-]+$")
+SCORE_RE = re.compile(r"^-?(?:0|[1-9]\d*)(?:\.\d+)?$")
+
+# No Metrika ID — do not insert a tag or a “fill in later” stub.
+CSP = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "object-src 'none'; "
+    "base-uri 'self'"
+)
+
+
+def is_preview() -> bool:
+    return not PROD_ORIGIN
+
+
+def site_origin() -> str:
+    return PROD_ORIGIN.rstrip("/") if PROD_ORIGIN else PREVIEW_ORIGIN
 
 
 def e(value) -> str:
@@ -75,25 +90,46 @@ def format_date(as_of: str) -> str:
 
 
 def format_score(score) -> str | None:
-    if score is None:
+    """Number as text, or None → em dash at render. Never a raw non-numeric string."""
+    if score is None or isinstance(score, bool):
         return None
-    if isinstance(score, bool):
-        return None
-    if isinstance(score, str):
-        return score
-    if isinstance(score, (int, float)):
+    if isinstance(score, int):
+        return str(score)
+    if isinstance(score, float):
+        if score != score or score in (float("inf"), float("-inf")):
+            return None
         return json.dumps(score)
+    if isinstance(score, str):
+        text = score.strip()
+        if SCORE_RE.fullmatch(text):
+            return text
+        return None
     return None
 
 
 def company_id_of(row: dict) -> str | None:
-    return row.get("company_id") or row.get("id")
+    cid = row.get("company_id") or row.get("id")
+    if not isinstance(cid, str):
+        return None
+    cid = cid.strip()
+    if not COMPANY_ID_RE.fullmatch(cid):
+        return None
+    return cid
 
 
 def place_of(row: dict):
-    if "place" in row:
-        return row.get("place")
-    return row.get("rank")
+    raw = row.get("place") if "place" in row else row.get("rank")
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, int):
+        return raw if raw > 0 else None
+    if isinstance(raw, float):
+        if raw != raw or not raw.is_integer() or raw <= 0:
+            return None
+        return int(raw)
+    if isinstance(raw, str) and re.fullmatch(r"[1-9]\d*", raw.strip()):
+        return int(raw.strip())
+    return None
 
 
 def card_of(row: dict) -> dict | None:
@@ -143,9 +179,10 @@ def href(depth: int, path: str) -> str:
 
 
 def abs_url(path: str) -> str:
+    origin = site_origin()
     if not path:
-        return SITE_ORIGIN + "/"
-    return SITE_ORIGIN + "/" + path.lstrip("/")
+        return origin + "/"
+    return origin + "/" + path.lstrip("/")
 
 
 def logo_svg() -> str:
@@ -203,24 +240,33 @@ def page(
     description: str,
     canonical_path: str,
 ) -> str:
-    banner = BANNER_HTML
+    extra: list[str] = [
+        f'<meta http-equiv="Content-Security-Policy" content="{CSP}">'
+    ]
+    if is_preview():
+        extra.append('<meta name="robots" content="noindex, nofollow">')
+    else:
+        extra.append(f'<link rel="canonical" href="{e(abs_url(canonical_path))}">')
+    extra_head = "\n  ".join(extra)
+    banner = BANNER_HTML.strip()
+    banner_block = f"{banner}\n" if banner else ""
     return f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {extra_head}
   <title>{e(title)}</title>
   <meta name="description" content="{e(description)}">
-  <link rel="canonical" href="{e(abs_url(canonical_path))}">
   <link rel="stylesheet" href="{e(css_href(depth))}">
 </head>
 <body>
-{banner}{header(depth, active, date_human)}
+{banner_block}{header(depth, active, date_human)}
 <main class="wrap">
 {body}
 </main>
 {footer(depth)}
-{COUNTERS_HTML}</body>
+</body>
 </html>
 """
 
@@ -231,26 +277,34 @@ def write(path: Path, text: str) -> None:
 
 
 def write_robots() -> None:
+    if is_preview():
+        write(ROOT / "robots.txt", "User-agent: *\nDisallow: /\n")
+        return
     write(
         ROOT / "robots.txt",
         "User-agent: *\n"
         "Allow: /\n"
         "\n"
-        f"Sitemap: {SITE_ORIGIN}/sitemap.xml\n",
+        f"Sitemap: {site_origin()}/sitemap.xml\n",
     )
 
 
 def write_sitemap(as_of: str) -> None:
+    path = ROOT / "sitemap.xml"
+    if is_preview():
+        if path.exists():
+            path.unlink()
+        return
     blocks = []
-    for path in INDEX_PATHS:
+    for url_path in INDEX_PATHS:
         blocks.append(
             "  <url>\n"
-            f"    <loc>{e(abs_url(path))}</loc>\n"
+            f"    <loc>{e(abs_url(url_path))}</loc>\n"
             f"    <lastmod>{e(as_of)}</lastmod>\n"
             "  </url>"
         )
     write(
-        ROOT / "sitemap.xml",
+        path,
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "\n".join(blocks)
@@ -641,14 +695,31 @@ def build_metodika(date_human: str) -> str:
     )
 
 
+def build_404(date_human: str) -> str:
+    body = """<p class="kicker">Ошибка</p>
+<h1>Страница не найдена</h1>
+<p class="lead">Такой страницы нет. <a href="./">К оглавлению</a>.</p>"""
+    return page(
+        0,
+        "Страница не найдена",
+        "home",
+        date_human,
+        body,
+        description="Такой страницы нет.",
+        canonical_path="",
+    )
+
+
 def main() -> None:
     pkg = load_package()
     date_human = format_date(pkg["as_of"])
     tables = pkg.get("tables") or {}
 
+    # Package JSON only. Ranking markdown is not a data source.
     wordstat = normalize_rows(tables.get("wordstat"))
     reviews = normalize_rows(tables.get("reviews"))
-    # tables.research may exist in JSON; do not publish places on pages.
+    if not RESEARCH_PUBLISHED:
+        tables.pop("research", None)
 
     write(ROOT / "index.html", build_home(pkg, date_human))
     write(ROOT / "kaliningrad" / "index.html", build_hub(pkg, date_human))
@@ -695,6 +766,7 @@ def main() -> None:
         ),
     )
     write(ROOT / "metodika" / "index.html", build_metodika(date_human))
+    write(ROOT / "404.html", build_404(date_human))
     write_robots()
     write_sitemap(pkg["as_of"])
     print("built", len(wordstat), "wordstat rows,", len(reviews), "reviews rows")

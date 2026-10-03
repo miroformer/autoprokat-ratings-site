@@ -4,6 +4,8 @@
 
 Пробная статика из `data/site-export/package-2026-09-26.json`. Исследование в JSON не публикуем.
 
+Превью GitHub Pages закрыто от индекса: `noindex, nofollow` и `robots.txt` Disallow. Sitemap на этом хосте не публикуем.
+
 ## Страницы
 
 - `/` — оглавление
@@ -12,7 +14,7 @@
 - `/kaliningrad/otzyvy/` — reviews
 - `/metodika/` — методика
 
-Пересборка: `python3 build.py`
+Пересборка: `python3 build.py && python3 check_build.py`
 
 ## Открыть локально
 

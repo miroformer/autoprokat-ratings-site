@@ -1,0 +1,64 @@
+name: Prod upload
+
+# Separate from Pages preview. Keys live in GitHub environment "prod", not here.
+# Owner must create that environment and secrets after the Cloud account exists.
+# Do not invent bucket names, cloud IDs, or keys in this repository.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build from package JSON
+        run: python3 build.py
+      - name: Check generated files
+        run: python3 check_build.py
+      - name: Stage public files only
+        run: |
+          mkdir -p public-site
+          cp index.html robots.txt .nojekyll 404.html public-site/
+          cp -a assets kaliningrad metodika public-site/
+          test ! -e public-site/data
+          test ! -e public-site/docs
+      - name: Upload to Object Storage
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.YC_SA_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SA_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ru-central1
+          AWS_EC2_METADATA_DISABLED: "true"
+          YC_BUCKET: ${{ secrets.YC_BUCKET }}
+          YC_ENDPOINT: ${{ secrets.YC_ENDPOINT }}
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$YC_BUCKET" ]; then
+            echo "Prod secrets are not set. Remaining owner work: Yandex Cloud SA key and bucket in GitHub environment prod."
+            exit 1
+          fi
+          ENDPOINT="${YC_ENDPOINT:-https://storage.yandexcloud.net}"
+          while IFS= read -r -d '' f; do
+            rel="${f#public-site/}"
+            case "$f" in
+              *.html) ct="text/html; charset=utf-8" ;;
+              *.css) ct="text/css; charset=utf-8" ;;
+              *.js) ct="text/javascript; charset=utf-8" ;;
+              *.txt) ct="text/plain; charset=utf-8" ;;
+              *.svg) ct="image/svg+xml" ;;
+              *.png) ct="image/png" ;;
+              *.jpg|*.jpeg) ct="image/jpeg" ;;
+              *.webp) ct="image/webp" ;;
+              *) ct="" ;;
+            esac
+            if [ -n "$ct" ]; then
+              aws s3 cp "$f" "s3://${YC_BUCKET}/${rel}" --endpoint-url "$ENDPOINT" --content-type "$ct"
+            else
+              aws s3 cp "$f" "s3://${YC_BUCKET}/${rel}" --endpoint-url "$ENDPOINT"
+            fi
+          done < <(find public-site -type f -print0)

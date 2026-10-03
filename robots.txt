@@ -1,4 +1,2 @@
 User-agent: *
-Allow: /
-
-Sitemap: https://miroformer.github.io/autoprokat-ratings-site/sitemap.xml
+Disallow: /
