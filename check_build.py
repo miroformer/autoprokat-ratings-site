@@ -107,6 +107,16 @@ def main() -> None:
             fail(f"unsafe-inline on {path.relative_to(ROOT)}")
         if "rel=\"canonical\"" in text:
             fail(f"preview must not advertise canonical {path.relative_to(ROOT)}")
+        if 'property="og:url"' in text:
+            fail(f"preview must not set og:url {path.relative_to(ROOT)}")
+        if 'property="og:image"' in text or 'name="twitter:image"' in text:
+            fail(f"no share image — do not emit og:image on {path.relative_to(ROOT)}")
+        if "schema.org" in text.lower() or "application/ld+json" in text.lower():
+            fail(f"JSON-LD/schema.org on {path.relative_to(ROOT)}")
+        if "aggregaterating" in text.lower() or 'itemprop="review' in text.lower():
+            fail(f"review schema on {path.relative_to(ROOT)}")
+        if "лучший прокат" in text.lower():
+            fail(f"invented SEO slogan on {path.relative_to(ROOT)}")
         if "<script" in text.lower():
             fail(f"unexpected script on {path.relative_to(ROOT)}")
         if "mc.yandex" in text or "metrika" in text.lower():
@@ -119,6 +129,44 @@ def main() -> None:
             fail(f"empty banner rendered on {path.relative_to(ROOT)}")
         if "<base " in text.lower():
             fail(f"base href on {path.relative_to(ROOT)}")
+
+    titles = []
+    descriptions = []
+    for path in PAGES:
+        text = path.read_text(encoding="utf-8")
+        title_m = re.search(r"<title>(.*?)</title>", text)
+        desc_m = re.search(r'<meta name="description" content="([^"]*)">', text)
+        og_title_m = re.search(r'<meta property="og:title" content="([^"]*)">', text)
+        og_desc_m = re.search(r'<meta property="og:description" content="([^"]*)">', text)
+        tw_title_m = re.search(r'<meta name="twitter:title" content="([^"]*)">', text)
+        tw_desc_m = re.search(r'<meta name="twitter:description" content="([^"]*)">', text)
+        if not title_m or not desc_m:
+            fail(f"missing title/description on {path.relative_to(ROOT)}")
+        title, desc = title_m.group(1), desc_m.group(1)
+        if not title.strip() or not desc.strip():
+            fail(f"empty title/description on {path.relative_to(ROOT)}")
+        if not og_title_m or og_title_m.group(1) != title:
+            fail(f"og:title must match title on {path.relative_to(ROOT)}")
+        if not og_desc_m or og_desc_m.group(1) != desc:
+            fail(f"og:description must match description on {path.relative_to(ROOT)}")
+        if 'property="og:type" content="website"' not in text:
+            fail(f"missing og:type on {path.relative_to(ROOT)}")
+        if 'property="og:locale" content="ru_RU"' not in text:
+            fail(f"missing og:locale on {path.relative_to(ROOT)}")
+        if f'property="og:site_name" content="{site.SITE_NAME}"' not in text:
+            fail(f"missing og:site_name on {path.relative_to(ROOT)}")
+        if 'name="twitter:card" content="summary"' not in text:
+            fail(f"missing twitter:card on {path.relative_to(ROOT)}")
+        if not tw_title_m or tw_title_m.group(1) != title:
+            fail(f"twitter:title must match title on {path.relative_to(ROOT)}")
+        if not tw_desc_m or tw_desc_m.group(1) != desc:
+            fail(f"twitter:description must match description on {path.relative_to(ROOT)}")
+        titles.append(title)
+        descriptions.append(desc)
+    if len(set(titles)) != len(titles):
+        fail(f"titles must be unique per URL, got {titles}")
+    if len(set(descriptions)) != len(descriptions):
+        fail(f"descriptions must be unique per URL, got {descriptions}")
 
     hub = (ROOT / "kaliningrad" / "index.html").read_text(encoding="utf-8")
     if "place-card" in hub or "table-block" in hub or "depth-pills" in hub:
@@ -163,6 +211,15 @@ def main() -> None:
         if 'id="top-3"' not in html or 'id="top-5"' not in html or 'id="top-10"' not in html:
             fail(f"{name} must keep in-page top-3/5/10 anchors")
 
+    z_desc = re.search(r'<meta name="description" content="([^"]*)">', zaprosy)
+    o_desc = re.search(r'<meta name="description" content="([^"]*)">', otzyvy)
+    if not z_desc or "45 компаний" not in z_desc.group(1) or "1-е место: Амиго" not in z_desc.group(1):
+        fail("zaprosy description must pack markdown count and 1st place")
+    if not o_desc or "36 компаний" not in o_desc.group(1) or "1-е место: Амиго" not in o_desc.group(1):
+        fail("otzyvy description must pack markdown count and 1st place")
+    if "Carplus" in (z_desc.group(1) if z_desc else ""):
+        fail("zaprosy description must not take reviews 2nd place")
+
     if (ROOT / "sitemap.xml").exists():
         fail("do not advertise sitemap on the GitHub Pages host")
 
@@ -182,6 +239,38 @@ def main() -> None:
     extra = [p for p in company_pages if p not in allowed]
     if extra:
         fail(f"unexpected pages under kaliningrad: {extra}")
+
+    saved_origin = site.PROD_ORIGIN
+    site.PROD_ORIGIN = "https://example.test"
+    try:
+        if site.is_preview():
+            fail("prod origin must not be treated as preview")
+        prod = site.head_tags(
+            title="T",
+            description="D",
+            canonical_path="kaliningrad/zaprosy/",
+            indexable=True,
+        )
+        if 'rel="canonical" href="https://example.test/kaliningrad/zaprosy/"' not in prod:
+            fail("prod must emit canonical on a real origin")
+        if 'property="og:url" content="https://example.test/kaliningrad/zaprosy/"' not in prod:
+            fail("prod must emit og:url on a real origin")
+        if "noindex" in prod:
+            fail("indexable prod page must not be noindex")
+        closed_404 = site.head_tags(
+            title="404",
+            description="нет",
+            canonical_path="",
+            indexable=False,
+        )
+        if 'name="robots" content="noindex, nofollow"' not in closed_404:
+            fail("404 must stay noindex on prod")
+        if "canonical" in closed_404 or "og:url" in closed_404:
+            fail("404 must not claim canonical/og:url")
+    finally:
+        site.PROD_ORIGIN = saved_origin
+    if not site.is_preview():
+        fail("restore preview origin after prod head test")
 
     print("ok")
 

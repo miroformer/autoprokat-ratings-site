@@ -51,6 +51,8 @@ BANNER_HTML = ""
 # Empty means GitHub Pages preview: noindex, no sitemap, no canonical-as-prod.
 PROD_ORIGIN = ""
 PREVIEW_ORIGIN = "https://miroformer.github.io/autoprokat-ratings-site"
+SITE_NAME = "Рейтинги автопрокатов"
+# No real share image in the snapshot — do not emit og:image.
 
 INDEX_PATHS = (
     "",
@@ -270,6 +272,64 @@ def footer(depth: int) -> str:
 </footer>"""
 
 
+def ranking_description(kind: str, date_human: str, rows: list[dict]) -> str:
+    """Description from published table facts only. No 'лучший', no invented ranks."""
+    if kind == "zaprosy":
+        lead = (
+            f"Рейтинг автопрокатов Калининграда по брендовым поисковым запросам. "
+            f"На {date_human}."
+        )
+    elif kind == "otzyvy":
+        lead = (
+            f"Рейтинг автопрокатов Калининграда по картам и отзывам. "
+            f"На {date_human}."
+        )
+    else:
+        raise ValueError(f"unknown ranking kind {kind}")
+    parts = [lead]
+    if rows:
+        parts.append(f"В рейтинге {len(rows)} компаний.")
+        parts.append(f"1-е место: {rows[0]['name']}.")
+    return " ".join(parts)
+
+
+def head_tags(
+    *,
+    title: str,
+    description: str,
+    canonical_path: str,
+    indexable: bool,
+) -> str:
+    tags = [
+        f'<meta http-equiv="Content-Security-Policy" content="{CSP}">',
+    ]
+    preview = is_preview()
+    closed = preview or not indexable
+    if closed:
+        tags.append('<meta name="robots" content="noindex, nofollow">')
+    loc = abs_url(canonical_path)
+    # Canonical / og:url only on a real prod origin. Preview must not claim github.io
+    # as canonical, and must not invent a domain.
+    if not preview and indexable and PROD_ORIGIN:
+        tags.append(f'<link rel="canonical" href="{e(loc)}">')
+        tags.append(f'<meta property="og:url" content="{e(loc)}">')
+    tags.extend(
+        [
+            f"<title>{e(title)}</title>",
+            f'<meta name="description" content="{e(description)}">',
+            f'<meta property="og:title" content="{e(title)}">',
+            f'<meta property="og:description" content="{e(description)}">',
+            '<meta property="og:type" content="website">',
+            '<meta property="og:locale" content="ru_RU">',
+            f'<meta property="og:site_name" content="{e(SITE_NAME)}">',
+            '<meta name="twitter:card" content="summary">',
+            f'<meta name="twitter:title" content="{e(title)}">',
+            f'<meta name="twitter:description" content="{e(description)}">',
+        ]
+    )
+    return "\n  ".join(tags)
+
+
 def page(
     depth: int,
     title: str,
@@ -279,15 +339,14 @@ def page(
     *,
     description: str,
     canonical_path: str,
+    indexable: bool = True,
 ) -> str:
-    extra: list[str] = [
-        f'<meta http-equiv="Content-Security-Policy" content="{CSP}">'
-    ]
-    if is_preview():
-        extra.append('<meta name="robots" content="noindex, nofollow">')
-    else:
-        extra.append(f'<link rel="canonical" href="{e(abs_url(canonical_path))}">')
-    extra_head = "\n  ".join(extra)
+    extra_head = head_tags(
+        title=title,
+        description=description,
+        canonical_path=canonical_path,
+        indexable=indexable,
+    )
     banner = BANNER_HTML.strip()
     banner_block = f"{banner}\n" if banner else ""
     return f"""<!DOCTYPE html>
@@ -296,8 +355,6 @@ def page(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {extra_head}
-  <title>{e(title)}</title>
-  <meta name="description" content="{e(description)}">
   <link rel="stylesheet" href="{e(css_href(depth))}">
 </head>
 <body>
@@ -706,7 +763,7 @@ def build_hub(pkg: dict, date_human: str) -> str:
     )
 
 
-def build_metodika(date_human: str) -> str:
+def build_metodika(date_human: str, method_version: str | None) -> str:
     wordstat = md_to_html((DATA / "wordstat-method-description.md").read_text(encoding="utf-8"))
     reviews = md_to_html((DATA / "reviews-method-description.md").read_text(encoding="utf-8"))
     body = f"""<p class="kicker">Методика</p>
@@ -722,6 +779,7 @@ def build_metodika(date_human: str) -> str:
 <h2>Исследование</h2>
 <p>Исследование ещё не опубликовано.</p>
 </section>"""
+    version_bit = f" Версия методики {method_version}." if method_version else ""
     return page(
         1,
         f"Методика рейтингов автопрокатов — {date_human}",
@@ -729,7 +787,8 @@ def build_metodika(date_human: str) -> str:
         date_human,
         body,
         description=(
-            f"Как считали рейтинги автопрокатов Калининграда по запросам и отзовикам. На {date_human}."
+            f"Как считали рейтинги автопрокатов Калининграда по запросам и отзовикам. "
+            f"На {date_human}.{version_bit} Исследование ещё не опубликовано."
         ),
         canonical_path="metodika/",
     )
@@ -747,6 +806,7 @@ def build_404(date_human: str) -> str:
         body,
         description="Такой страницы нет.",
         canonical_path="",
+        indexable=False,
     )
 
 
@@ -764,6 +824,12 @@ def main() -> None:
 
     write(ROOT / "index.html", build_home(pkg, date_human))
     write(ROOT / "kaliningrad" / "index.html", build_hub(pkg, date_human))
+    method_version = pkg.get("methodology_version")
+    if not isinstance(method_version, str) or not method_version.strip():
+        method_version = None
+    else:
+        method_version = method_version.strip()
+
     write(
         ROOT / "kaliningrad" / "zaprosy" / "index.html",
         page(
@@ -779,9 +845,7 @@ def main() -> None:
                 wordstat,
                 date_human,
             ),
-            description=(
-                f"Рейтинг автопрокатов Калининграда по брендовым поисковым запросам. На {date_human}."
-            ),
+            description=ranking_description("zaprosy", date_human, wordstat),
             canonical_path="kaliningrad/zaprosy/",
         ),
     )
@@ -800,13 +864,11 @@ def main() -> None:
                 reviews,
                 date_human,
             ),
-            description=(
-                f"Рейтинг автопрокатов Калининграда по картам и отзывам. На {date_human}."
-            ),
+            description=ranking_description("otzyvy", date_human, reviews),
             canonical_path="kaliningrad/otzyvy/",
         ),
     )
-    write(ROOT / "metodika" / "index.html", build_metodika(date_human))
+    write(ROOT / "metodika" / "index.html", build_metodika(date_human, method_version))
     write(ROOT / "404.html", build_404(date_human))
     write_robots()
     write_sitemap(pkg["as_of"])
