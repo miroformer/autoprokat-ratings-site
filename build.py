@@ -677,7 +677,7 @@ def ranking_body(
     if first:
         score = format_score(first["score"], SCORE_DECIMALS[kind])
         score_bit = f", балл {score}" if score is not None else ""
-        first_line = f" {e(kicker)}, 1-е место: {e(first['name'])}{e(score_bit)}."
+        first_line = f" 1-е место: {e(first['name'])}{e(score_bit)}."
     kicker_html = (
         f'<p class="kicker-row">{kicker_icon}<span>{e(kicker)}</span></p>'
         if kicker_icon
