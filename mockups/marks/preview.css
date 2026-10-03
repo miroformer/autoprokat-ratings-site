@@ -1,0 +1,9 @@
+body{margin:0;background:#120e0b;color:#f7f1e3;font-family:"Segoe UI",system-ui,sans-serif}
+main{max-width:56rem;margin:0 auto;padding:2.5rem 1rem 4rem}
+h1{font-size:1.5rem;margin:0 0 .6rem}
+p,figcaption{color:#bcaf9c}
+.row{display:flex;flex-wrap:wrap;gap:1.25rem;margin:1.5rem 0}
+figure{margin:0;background:#221810;border:1px solid #4c4035;border-radius:1rem;padding:1rem 1.1rem;min-width:11rem;text-align:center}
+.light{background:#f3efe6;color:#160d07}
+.light figcaption{color:#5c5348}
+img{display:block;margin:0 auto .6rem}
