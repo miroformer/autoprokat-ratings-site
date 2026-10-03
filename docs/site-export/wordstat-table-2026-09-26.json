@@ -5,112 +5,389 @@
   "tables": {
     "wordstat": [
       {
-        "id": "amigo",
+        "company_id": "amigo",
         "name": "Амиго",
-        "rank": 1,
-        "score": 1.0,
-        "pros": [],
-        "cons": [],
-        "texts_pending": true,
+        "place": 1,
+        "score": 100.0,
+        "score_raw": 1.0,
         "snapshot_date": "2026-09-26",
         "methodology_version": "v3"
       },
       {
-        "id": "city-rent",
+        "company_id": "city-rent",
         "name": "Сити рент",
-        "rank": 2,
-        "score": 0.996542,
-        "pros": [],
-        "cons": [],
-        "texts_pending": true,
+        "place": 2,
+        "score": 99.7,
+        "score_raw": 0.997,
         "snapshot_date": "2026-09-26",
         "methodology_version": "v3"
       },
       {
-        "id": "lite-rent",
+        "company_id": "lite-rent",
         "name": "Lite Rent",
-        "rank": 3,
-        "score": 0.988909,
-        "pros": [],
-        "cons": [],
-        "texts_pending": true,
+        "place": 3,
+        "score": 98.9,
+        "score_raw": 0.989,
         "snapshot_date": "2026-09-26",
         "methodology_version": "v3"
       },
       {
-        "id": "amber-car",
+        "company_id": "amber-car",
         "name": "Амбер кар рент",
-        "rank": 4,
-        "score": 0.920394,
-        "pros": [],
-        "cons": [],
-        "texts_pending": true,
+        "place": 4,
+        "score": 92.0,
+        "score_raw": 0.92,
         "snapshot_date": "2026-09-26",
         "methodology_version": "v3"
       },
       {
-        "id": "a-prokat",
+        "company_id": "a-prokat",
         "name": "А прокат",
-        "rank": 5,
-        "score": 0.912039,
-        "pros": [],
-        "cons": [],
-        "texts_pending": true,
+        "place": 5,
+        "score": 91.2,
+        "score_raw": 0.912,
         "snapshot_date": "2026-09-26",
         "methodology_version": "v3"
       },
       {
-        "id": "trip-rent",
+        "company_id": "trip-rent",
         "name": "Трип рент",
-        "rank": 6,
-        "score": 0.895392,
-        "pros": [],
-        "cons": [],
-        "texts_pending": true,
+        "place": 6,
+        "score": 89.5,
+        "score_raw": 0.895,
         "snapshot_date": "2026-09-26",
         "methodology_version": "v3"
       },
       {
-        "id": "spk",
+        "company_id": "spk",
         "name": "СПК",
-        "rank": 7,
-        "score": 0.874866,
-        "pros": [],
-        "cons": [],
-        "texts_pending": true,
+        "place": 7,
+        "score": 87.5,
+        "score_raw": 0.875,
         "snapshot_date": "2026-09-26",
         "methodology_version": "v3"
       },
       {
-        "id": "kenig-rent",
+        "company_id": "kenig-rent",
         "name": "Кениг рент",
-        "rank": 8,
-        "score": 0.843028,
-        "pros": [],
-        "cons": [],
-        "texts_pending": true,
+        "place": 8,
+        "score": 84.3,
+        "score_raw": 0.843,
         "snapshot_date": "2026-09-26",
         "methodology_version": "v3"
       },
       {
-        "id": "pavlov",
+        "company_id": "pavlov",
         "name": "Павлов",
-        "rank": 9,
-        "score": 0.824342,
-        "pros": [],
-        "cons": [],
-        "texts_pending": true,
+        "place": 9,
+        "score": 82.4,
+        "score_raw": 0.824,
         "snapshot_date": "2026-09-26",
         "methodology_version": "v3"
       },
       {
-        "id": "amber-rent",
+        "company_id": "amber-rent",
         "name": "Амбер рент",
-        "rank": 10,
-        "score": 0.823634,
-        "pros": [],
-        "cons": [],
-        "texts_pending": true,
+        "place": 10,
+        "score": 82.4,
+        "score_raw": 0.824,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "ivanov-avtoprokat",
+        "name": "Иванов автопрокат",
+        "place": 11,
+        "score": 81.6,
+        "score_raw": 0.816,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "citydrive",
+        "name": "Ситидрайв",
+        "place": 12,
+        "score": 81.2,
+        "score_raw": 0.812,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "localrent",
+        "name": "Localrent",
+        "place": 13,
+        "score": 80.5,
+        "score_raw": 0.805,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "optima-rent",
+        "name": "Оптима рент",
+        "place": 14,
+        "score": 75.9,
+        "score_raw": 0.759,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "maxrent",
+        "name": "Максрент",
+        "place": 15,
+        "score": 74.1,
+        "score_raw": 0.741,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "suligarent",
+        "name": "Сулигарент",
+        "place": 16,
+        "score": 73.7,
+        "score_raw": 0.737,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "carplus",
+        "name": "Carplus",
+        "place": 17,
+        "score": 72.8,
+        "score_raw": 0.728,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "eurocar",
+        "name": "Еврокар",
+        "place": 18,
+        "score": 72.6,
+        "score_raw": 0.726,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "rent-express",
+        "name": "Рент Экспресс",
+        "place": 19,
+        "score": 71.7,
+        "score_raw": 0.717,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "omega-rent",
+        "name": "Омега рент",
+        "place": 20,
+        "score": 70.2,
+        "score_raw": 0.702,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "baltic-rent",
+        "name": "Балтик рент",
+        "place": 21,
+        "score": 67.6,
+        "score_raw": 0.676,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "top-rent",
+        "name": "Топ рент",
+        "place": 22,
+        "score": 67.3,
+        "score_raw": 0.673,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "mega-avtoprokat",
+        "name": "Мега автопрокат",
+        "place": 23,
+        "score": 66.0,
+        "score_raw": 0.66,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "rent-motors",
+        "name": "Рент Моторс",
+        "place": 24,
+        "score": 61.3,
+        "score_raw": 0.613,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "easy-rent",
+        "name": "Easy Rent",
+        "place": 25,
+        "score": 59.4,
+        "score_raw": 0.594,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "bulanov-rent",
+        "name": "Буланов рент",
+        "place": 26,
+        "score": 55.3,
+        "score_raw": 0.553,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "sofi-rent",
+        "name": "Софи рент",
+        "place": 27,
+        "score": 55.1,
+        "score_raw": 0.551,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "partner-rent",
+        "name": "Партнер рент",
+        "place": 28,
+        "score": 53.6,
+        "score_raw": 0.536,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "avtopilot",
+        "name": "Автопилот",
+        "place": 29,
+        "score": 52.3,
+        "score_raw": 0.523,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "time-rent",
+        "name": "Тайм рент",
+        "place": 30,
+        "score": 51.9,
+        "score_raw": 0.519,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "kompas",
+        "name": "Компас",
+        "place": 31,
+        "score": 49.3,
+        "score_raw": 0.493,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "royal-rent",
+        "name": "Роял рент",
+        "place": 32,
+        "score": 45.2,
+        "score_raw": 0.452,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "autohub-rent",
+        "name": "Autohub Rent",
+        "place": 33,
+        "score": 44.5,
+        "score_raw": 0.445,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "riv-rent",
+        "name": "Riv Rent",
+        "place": 34,
+        "score": 43.9,
+        "score_raw": 0.439,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "voyazh",
+        "name": "Вояж",
+        "place": 35,
+        "score": 43.1,
+        "score_raw": 0.431,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "rex-rent",
+        "name": "Rex Rent",
+        "place": 36,
+        "score": 40.9,
+        "score_raw": 0.409,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "cabrio-rent",
+        "name": "Кабрио рент",
+        "place": 37,
+        "score": 32.4,
+        "score_raw": 0.324,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "bi-bi-rent",
+        "name": "Би би рент",
+        "place": 38,
+        "score": 31.6,
+        "score_raw": 0.316,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "yu-drive-rent",
+        "name": "Ю Драйв рент",
+        "place": 39,
+        "score": 22.7,
+        "score_raw": 0.227,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "best-rent",
+        "name": "Бест рент",
+        "place": 40,
+        "score": 20.9,
+        "score_raw": 0.209,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "flash-rent",
+        "name": "Флеш рент",
+        "place": 41,
+        "score": 0.0,
+        "score_raw": 0.0,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "soyuz-prokat",
+        "name": "Союз прокат",
+        "place": 42,
+        "score": 0.0,
+        "score_raw": 0.0,
+        "snapshot_date": "2026-09-26",
+        "methodology_version": "v3"
+      },
+      {
+        "company_id": "rpk-rent",
+        "name": "РПК рент",
+        "place": 43,
+        "score": 0.0,
+        "score_raw": 0.0,
         "snapshot_date": "2026-09-26",
         "methodology_version": "v3"
       }
