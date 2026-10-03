@@ -5,9 +5,10 @@
 ## Пакет выбран
 
 - Файл: `package-2026-09-26.json` (`as_of` 2026-09-26, `methodology_version` v3, `region` kaliningrad)
-- Копия в репо витрины: `data/site-export/` (пакет + `*method-description.md`; `*-ranking-table.md` не источник мест)
-- В файле **есть** `tables.research` (строки без мест и баллов). На страницы **не публикуем**. `/kaliningrad/` — хаб без таблицы мест.
-- Живые страницы: `tables.wordstat` → `/kaliningrad/zaprosy/`, `tables.reviews` → `/kaliningrad/otzyvy/`
+- Копия в репо витрины: `data/site-export/` (пакет + `*method-description.md`). Дата среза — из пакета.
+- **Места и баллы живых рейтингов — из markdown, не из 10-строчных таблиц пакета:** `docs/site-export/wordstat-ranking-table.md` → `/kaliningrad/zaprosy/` (45 строк), `docs/site-export/reviews-ranking-table.md` → `/kaliningrad/otzyvy/` (36 строк). Балл — как написан в md, без добивки знаков из JSON.
+- `docs/site-export/ranking-table.md` — тот же список отзывов, **не** второй источник.
+- В пакете **есть** `tables.research` (строки без мест и баллов). На страницы **не публикуем**. `/kaliningrad/` — хаб без таблицы мест. Веса Калининграда не трогаем, места исследования не выдумываем.
 - В этом пакете у строк `id` / `rank` (не `company_id` / `place`). Витрина читает поля как есть, пакет не переписывает.
 - Объекта `card` нет; `pros`/`cons` пустые — карточек нет.
 
@@ -58,7 +59,7 @@
 | `wordstat` | `/kaliningrad/zaprosy/` |
 | `reviews` | `/kaliningrad/otzyvy/` |
 
-Сайт не пересчитывает, не склеивает три места в четвёртый рейтинг, не добавляет компании вне пакета.
+Сайт не пересчитывает, не склеивает три места в четвёртый рейтинг. Состав живых таблиц — полный markdown, не усечённый пакет JSON.
 
 ## Хаб до research (принято)
 

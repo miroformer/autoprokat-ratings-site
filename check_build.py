@@ -66,10 +66,32 @@ def main() -> None:
         fail("card.pros must be escaped")
 
     src = (ROOT / "build.py").read_text(encoding="utf-8")
-    if "ranking-table.md" in src:
-        fail("generator must not read ranking markdown")
-    if "package-2026-09-26.json" not in src:
-        fail("generator must keep package JSON as the data source")
+    if re.search(r'''['"]ranking-table\.md['"]''', src) and "same reviews list" not in src:
+        fail("generator must not read ranking-table.md (same reviews list)")
+    if "wordstat-ranking-table.md" not in src or "reviews-ranking-table.md" not in src:
+        fail("generator must read full ranking markdown")
+    if 'tables.get("wordstat")' in src or "tables.get('wordstat')" in src:
+        fail("generator must not use package JSON wordstat as ranking source")
+    if 'tables.get("reviews")' in src or "tables.get('reviews')" in src:
+        fail("generator must not use package JSON reviews as ranking source")
+
+    wordstat_md = site.parse_ranking_table(site.WORDSTAT_RANKING_MD)
+    reviews_md = site.parse_ranking_table(site.REVIEWS_RANKING_MD)
+    if len(wordstat_md) != 45:
+        fail(f"wordstat markdown must have 45 rows, got {len(wordstat_md)}")
+    if len(reviews_md) != 36:
+        fail(f"reviews markdown must have 36 rows, got {len(reviews_md)}")
+    if wordstat_md[0]["name"] != "Амиго" or wordstat_md[-1]["name"] != "РПК рент":
+        fail("wordstat markdown first/last names mismatch")
+    if reviews_md[0]["name"] != "Амиго" or reviews_md[1]["name"] != "Carplus":
+        fail("reviews markdown must start Амиго, Carplus")
+    if reviews_md[-1]["name"] != "Ю Драйв рент":
+        fail("reviews markdown last name mismatch")
+    try:
+        site.parse_ranking_table(site.DOCS_EXPORT / "ranking-table.md")
+        fail("ranking-table.md must be rejected")
+    except ValueError:
+        pass
 
     for path in PAGES:
         if not path.is_file():
@@ -104,13 +126,42 @@ def main() -> None:
 
     zaprosy = (ROOT / "kaliningrad" / "zaprosy" / "index.html").read_text(encoding="utf-8")
     otzyvy = (ROOT / "kaliningrad" / "otzyvy" / "index.html").read_text(encoding="utf-8")
+
+    def html_table_rows(html: str) -> list[tuple[str, str, str]]:
+        bodies = re.findall(r"<tbody>\s*(.*?)\s*</tbody>", html, flags=re.S)
+        if not bodies:
+            return []
+        return re.findall(
+            r'<tr(?:\s[^>]*)?><td class="num">(\d+)</td><td>(.*?)</td>'
+            r'<td class="num">(.*?)</td></tr>',
+            bodies[0],
+        )
+
+    z_rows = html_table_rows(zaprosy)
+    o_rows = html_table_rows(otzyvy)
+    if len(z_rows) != 45:
+        fail(f"zaprosy must have 45 markdown rows, got {len(z_rows)}")
+    if len(o_rows) != 36:
+        fail(f"otzyvy must have 36 markdown rows, got {len(o_rows)}")
+    if z_rows[0] != ("1", "Амиго", "1.000") or z_rows[-1] != ("45", "РПК рент", "0.000"):
+        fail("zaprosy first/last row must match wordstat markdown")
+    if o_rows[0] != ("1", "Амиго", "4.965") or o_rows[1] != ("2", "Carplus", "4.960"):
+        fail("otzyvy must start 1 Амиго, 2 Carplus")
+    if o_rows[-1] != ("36", "Ю Драйв рент", "3.806"):
+        fail("otzyvy last row must match reviews markdown")
+    for md_row, html_row in zip(wordstat_md, z_rows):
+        if html_row != (str(md_row["place"]), md_row["name"], md_row["score"]):
+            fail(f"zaprosy HTML diverges from markdown at place {md_row['place']}")
+    for md_row, html_row in zip(reviews_md, o_rows):
+        if html_row != (str(md_row["place"]), md_row["name"], md_row["score"]):
+            fail(f"otzyvy HTML diverges from markdown at place {md_row['place']}")
+    if "0.996542" in zaprosy or "4.960471" in otzyvy:
+        fail("10-row package JSON scores must not appear")
     for name, html in (("zaprosy", zaprosy), ("otzyvy", otzyvy)):
-        rows = re.findall(r"<tbody>\s*(.*?)\s*</tbody>", html, flags=re.S)
-        if not rows:
-            fail(f"no table on {name}")
-        trs = re.findall(r"<tr\b", rows[0])
-        if len(trs) != 10:
-            fail(f"{name} must have 10 package JSON rows, got {len(trs)}")
+        if 'href="#top-3"' not in html or 'href="#top-5"' not in html or 'href="#top-10"' not in html:
+            fail(f"{name} must keep in-page top-3/5/10 pills")
+        if 'id="top-3"' not in html or 'id="top-5"' not in html or 'id="top-10"' not in html:
+            fail(f"{name} must keep in-page top-3/5/10 anchors")
 
     if (ROOT / "sitemap.xml").exists():
         fail("do not advertise sitemap on the GitHub Pages host")
