@@ -19,13 +19,15 @@ jobs:
           python-version: "3.12"
       - name: Build from ranking markdown
         run: python3 build.py
+      - name: Build design mockups
+        run: python3 mockups/build_mockups.py
       - name: Check preview guards
         run: python3 check_build.py
       - name: Stage public files only
         run: |
           mkdir -p public-site
           cp index.html robots.txt .nojekyll 404.html public-site/
-          cp -a assets kaliningrad metodika public-site/
+          cp -a assets kaliningrad metodika mockups public-site/
           if find public-site -name '*.json' | grep -q .; then
             echo "snapshot JSON must not be a site page"
             exit 1
