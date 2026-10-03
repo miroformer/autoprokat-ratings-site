@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Build from package JSON
+      - name: Build from ranking markdown
         run: python3 build.py
       - name: Check preview guards
         run: python3 check_build.py

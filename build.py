@@ -10,6 +10,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data" / "site-export"
+DOCS_EXPORT = ROOT / "docs" / "site-export"
+WORDSTAT_RANKING_MD = DOCS_EXPORT / "wordstat-ranking-table.md"
+REVIEWS_RANKING_MD = DOCS_EXPORT / "reviews-ranking-table.md"
 MONTHS = {
     1: "января",
     2: "февраля",
@@ -62,6 +65,10 @@ RESEARCH_PUBLISHED = False
 
 COMPANY_ID_RE = re.compile(r"^[a-z0-9-]+$")
 SCORE_RE = re.compile(r"^-?(?:0|[1-9]\d*)(?:\.\d+)?$")
+MD_RANK_ROW_RE = re.compile(
+    r"^\|\s*([1-9]\d*)\s*\|\s*([^|]+?)\s*\|\s*"
+    r"(-?(?:0|[1-9]\d*)(?:\.\d+)?)\s*\|\s*$"
+)
 
 # No Metrika ID — do not insert a tag or a “fill in later” stub.
 CSP = (
@@ -166,6 +173,39 @@ def normalize_rows(raw_rows) -> list[dict]:
 def load_package() -> dict:
     path = DATA / "package-2026-09-26.json"
     return json.loads(path.read_text(encoding="utf-8"), parse_float=lambda x: x)
+
+
+def parse_ranking_table(path: Path) -> list[dict]:
+    """Places and scores from a ranking markdown table. Tokens as written."""
+    if path.name == "ranking-table.md":
+        raise ValueError("ranking-table.md is the same reviews list; do not use")
+    text = path.read_text(encoding="utf-8")
+    out: list[dict] = []
+    seen: set[int] = set()
+    for line in text.splitlines():
+        m = MD_RANK_ROW_RE.match(line.strip())
+        if not m:
+            continue
+        place = int(m.group(1))
+        name = m.group(2).strip()
+        score = m.group(3)
+        if not name:
+            continue
+        if place in seen:
+            raise ValueError(f"duplicate place {place} in {path.name}")
+        seen.add(place)
+        out.append(
+            {
+                "name": name,
+                "place": place,
+                "score": score,
+                "card": None,
+            }
+        )
+    out.sort(key=lambda r: (r["place"], r["name"]))
+    if not out:
+        raise ValueError(f"no ranking rows in {path}")
+    return out
 
 
 def css_href(depth: int) -> str:
@@ -714,12 +754,13 @@ def main() -> None:
     pkg = load_package()
     date_human = format_date(pkg["as_of"])
     tables = pkg.get("tables") or {}
-
-    # Package JSON only. Ranking markdown is not a data source.
-    wordstat = normalize_rows(tables.get("wordstat"))
-    reviews = normalize_rows(tables.get("reviews"))
     if not RESEARCH_PUBLISHED:
         tables.pop("research", None)
+
+    # Full ranking markdown. Do not use 10-row package JSON tables.
+    # ranking-table.md is the same reviews list — do not read it.
+    wordstat = parse_ranking_table(WORDSTAT_RANKING_MD)
+    reviews = parse_ranking_table(REVIEWS_RANKING_MD)
 
     write(ROOT / "index.html", build_home(pkg, date_human))
     write(ROOT / "kaliningrad" / "index.html", build_hub(pkg, date_human))
