@@ -215,6 +215,12 @@ h1 {
 
 .place-name { font-size: 1.25rem; font-weight: 700; }
 .place-card[data-p="1"] .place-name { font-size: 1.4rem; }
+.place-name a { color: inherit; }
+
+.article h2[id],
+.article h3[id] {
+  scroll-margin-top: 5rem;
+}
 
 .stars {
   display: flex;
@@ -363,11 +369,13 @@ tr.is-top td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
   font-size: 1.1rem;
 }
 .article p,
-.authors p {
+.authors p,
+.contacts p {
   margin: 0 0 0.75rem;
   color: var(--muted);
 }
-.article ul, .article ol {
+.article ul, .article ol,
+.contacts ul {
   margin: 0 0 0.75rem;
   padding-left: 1.2rem;
   color: var(--muted);
@@ -382,6 +390,11 @@ tr.is-top td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 }
 .article blockquote p:last-child { margin-bottom: 0; }
 .article .table-scroll { margin: 0 0 1rem; }
+
+.contacts h2 {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 1.1rem;
+}
 
 .formula {
   display: block;

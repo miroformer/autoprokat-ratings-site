@@ -40,6 +40,7 @@ jobs:
           test -f _site/assets/marks/shared.svg
           test -f _site/kaliningrad/zaprosy/index.html
           test -f _site/kaliningrad/index.html
+          test -f _site/kontakty/index.html
           if find _site -name '*.json' | grep -q .; then
             echo "snapshot JSON must not be a site page"
             exit 1

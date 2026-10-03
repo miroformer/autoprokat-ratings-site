@@ -17,8 +17,13 @@ PAGES = [
     ROOT / "kaliningrad" / "zaprosy" / "index.html",
     ROOT / "kaliningrad" / "otzyvy" / "index.html",
     ROOT / "metodika" / "index.html",
+    ROOT / "kontakty" / "index.html",
     ROOT / "404.html",
 ]
+LEGAL_NAME_PAGES = {
+    ROOT / "kaliningrad" / "index.html",
+    ROOT / "kontakty" / "index.html",
+}
 
 
 def fail(msg: str) -> None:
@@ -26,17 +31,43 @@ def fail(msg: str) -> None:
     raise SystemExit(1)
 
 
+def visible_text(html: str) -> str:
+    return re.sub(r"<[^>]+>", "", html)
+
+
+def html_table_name_cells(html: str) -> list[tuple[str, str]]:
+    bodies = re.findall(r"<tbody>\s*(.*?)\s*</tbody>", html, flags=re.S)
+    if not bodies:
+        return []
+    return re.findall(
+        r'<tr(?:\s[^>]*)?><td class="num"><span class="rank">(?:<svg[\s\S]*?</svg>)?(\d+)</span></td>'
+        r"<td>(.*?)</td>",
+        bodies[0],
+    )
+
+
 def html_table_rows(html: str) -> list[tuple[str, str, str]]:
     bodies = re.findall(r"<tbody>\s*(.*?)\s*</tbody>", html, flags=re.S)
     if not bodies:
         return []
     # First table on ranking pages is the published list.
-    return re.findall(
+    rows = re.findall(
         r'<tr(?:\s[^>]*)?><td class="num"><span class="rank">(?:<svg[\s\S]*?</svg>)?(\d+)</span></td>'
         r"<td>(.*?)</td>"
         r'<td class="num">(.*?)</td></tr>',
         bodies[0],
     )
+    return [(place, visible_text(name), score) for place, name, score in rows]
+
+
+def podium_name_html(html: str, place: int) -> str | None:
+    m = re.search(
+        rf'<article class="card place-card" data-p="{place}">'
+        r'.*?<div class="place-name">(.*?)</div>',
+        html,
+        flags=re.S,
+    )
+    return m.group(1) if m else None
 
 
 def resolve_href(site, page: Path, href: str) -> Path | None:
@@ -195,8 +226,18 @@ def main() -> None:
             fail(f"invented SEO slogan in title on {path.relative_to(ROOT)}")
         if "gtag" in text.lower() or "googletagmanager" in text.lower():
             fail(f"counter stub on {path.relative_to(ROOT)}")
-        if "ООО" in text or "Рентпрог" in text:
+        if "Rentprog" in text:
+            fail(f"informal Rentprog on {path.relative_to(ROOT)}")
+        if re.search(r"Лок\s+\d{4}-\d{2}-\d{2}", text):
+            fail(f"lock note on {path.relative_to(ROOT)}")
+        if path not in LEGAL_NAME_PAGES and ("ООО" in text or "Рентпрог" in text):
             fail(f"publisher legal name on {path.relative_to(ROOT)}")
+        pills = re.search(r'<nav class="pill-nav"[^>]*>(.*?)</nav>', text, flags=re.S)
+        if pills and ("kontakty" in pills.group(1) or "Контакты" in pills.group(1)):
+            fail(f"kontakty must not be in pill nav on {path.relative_to(ROOT)}")
+        foot = re.search(r'<footer class="site-footer">(.*?)</footer>', text, flags=re.S)
+        if not foot or "kontakty" not in foot.group(1) or "Контакты" not in foot.group(1):
+            fail(f"footer must link to kontakty on {path.relative_to(ROOT)}")
         if "ваша реклама" in text.lower() or 'class="banner"' in text or 'id="banner"' in text:
             fail(f"empty banner rendered on {path.relative_to(ROOT)}")
         if "base href" in text.lower() or "<base " in text.lower():
@@ -303,10 +344,14 @@ def main() -> None:
         fail("hub must publish the research ranking")
     if "исследование ещё не опубликовано" in hub.lower():
         fail("hub must not say research is unpublished")
-    if "Rentprog" not in hub:
-        fail("authors markdown must render as-is")
+    if "Rentprog" in hub:
+        fail("informal Rentprog must not remain on the hub")
+    if "ООО «Рентпрог»" not in hub or "rentprog.ru" not in hub:
+        fail("authors must show ООО «Рентпрог» linking to rentprog.ru")
     if "топ-20 на 1 октября 2026" not in hub.lower() and "Топ-20 на 1 октября 2026" not in hub:
         fail("package article must render on the research page")
+    if (ROOT / "llms.txt").exists():
+        fail("do not add llms.txt")
 
     h_rows = html_table_rows(hub)
     z_rows = html_table_rows(zaprosy)
@@ -334,6 +379,52 @@ def main() -> None:
             fail(f"{name} must keep in-page top-3/5/10 pills")
         if 'id="top-3"' not in html or 'id="top-5"' not in html or 'id="top-10"' not in html:
             fail(f"{name} must keep in-page top-3/5/10 anchors")
+
+    hub_top1 = "#company-amigo"
+    side_top1 = site.href(2, "kaliningrad/") + "#company-amigo"
+    for name, html, top1_href in (
+        ("hub", hub, hub_top1),
+        ("zaprosy", zaprosy, side_top1),
+        ("otzyvy", otzyvy, side_top1),
+    ):
+        p1 = podium_name_html(html, 1)
+        if not p1 or f'<a href="{top1_href}">Амиго</a>' not in p1:
+            fail(f"{name} podium place 1 must link to hub #company-amigo")
+        for place in (2, 3):
+            pn = podium_name_html(html, place)
+            if not pn or "<a " in pn:
+                fail(f"{name} podium place {place} must not be a link")
+        cells = html_table_name_cells(html)
+        if not cells or f'<a href="{top1_href}">Амиго</a>' not in cells[0][1]:
+            fail(f"{name} table place 1 must link to hub #company-amigo")
+        for place, name_html in cells[1:]:
+            if "<a " in name_html:
+                fail(f"{name} table place {place} must not be a link")
+
+    article = re.search(r'id="statya">(.*?)</section>', hub, flags=re.S)
+    if not article:
+        fail("hub article block missing")
+    art = article.group(1)
+    if 'id="company-amigo"' not in art:
+        fail("amigo article heading must be #company-amigo")
+    if 'id="company-suligarent"' not in art:
+        fail("suligarent article heading must be #company-suligarent")
+    if 'id="company-trip-rent"' not in art:
+        fail("trip-rent article heading must be #company-trip-rent")
+    if "amigorent.ru" not in art or "suligarent.ru" not in art or "trip-rent.ru" not in art:
+        fail("research top-3 must keep article website links")
+    if re.search(r"<a[^>]*>Омега Рент</a>", art):
+        fail("place 4+ must not be linked in the article")
+    if re.search(r"<a[^>]*>Кёниг Рент</a>", art) or re.search(r"<a[^>]*>Амбер Кар</a>", art):
+        fail("place 4+ must not be linked in the article")
+
+    kontakty = (ROOT / "kontakty" / "index.html").read_text(encoding="utf-8")
+    if "Иван Сасько" not in kontakty or "Рустам Урманов" not in kontakty or "Виктор Федотов" not in kontakty:
+        fail("kontakty must list the published author names")
+    if re.search(r"директор|руководитель|соавтор", kontakty, flags=re.I):
+        fail("kontakty must list authors as names only")
+    if re.search(r"mailto:|tel:|\+7|ИНН|ОГРН|КПП", kontakty, flags=re.I):
+        fail("kontakty must not invent phone, email, or requisites")
 
     z_desc = re.search(r'<meta name="description" content="([^"]*)">', zaprosy)
     o_desc = re.search(r'<meta name="description" content="([^"]*)">', otzyvy)
@@ -383,6 +474,10 @@ def main() -> None:
             fail("staged site must not contain mockups/")
         if not (staged / "404.html").is_file():
             fail("staged site must keep 404.html")
+        if not (staged / "kontakty" / "index.html").is_file():
+            fail("staged site must include kontakty")
+        if (staged / "llms.txt").exists():
+            fail("staged site must not include llms.txt")
         if not (staged / ".nojekyll").is_file():
             fail("staged artifact needs .nojekyll so a later Actions/bucket publish skips Jekyll")
         if (staged / "404.html").read_text(encoding="utf-8") == (staged / "index.html").read_text(

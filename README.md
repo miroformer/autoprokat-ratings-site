@@ -8,6 +8,7 @@
 - `/kaliningrad/zaprosy/` — wordstat (100 = наибольший спрос в этом срезе)
 - `/kaliningrad/otzyvy/` — отзывы
 - `/metodika/` — методика из `docs/site-export/`
+- `/kontakty/` — контакты (футер, не pill-навигация)
 
 Превью GitHub Pages закрыто от индекса: `noindex, nofollow` и `robots.txt` Disallow. Sitemap на этом хосте не публикуем. Canonical/`og:url` нет: github.io не канон. Прод-домен позже: `topautoprokat.ru`. В опубликованное дерево (артефакт `public-site` и `_config.yml` exclude) не входят `data/`, `docs/`, JSON среза, `mockups/`.
 

@@ -69,10 +69,13 @@ INDEX_PATHS = (
     "kaliningrad/zaprosy/",
     "kaliningrad/otzyvy/",
     "metodika/",
+    "kontakty/",
 )
 
 PUBLIC_FILES = ("index.html", "404.html", "robots.txt")
-PUBLIC_DIRS = ("assets", "kaliningrad", "metodika")
+PUBLIC_DIRS = ("assets", "kaliningrad", "metodika", "kontakty")
+LOCK_LINE_RE = re.compile(r"(?m)^Лок\s+\d{4}-\d{2}-\d{2}:[^\n]*(?:\n|$)")
+RENTPROG_MD = "[ООО «Рентпрог»](https://rentprog.ru)"
 
 RESEARCH_PUBLISHED = True
 SCORE_DECIMALS = {"research": 2, "wordstat": 1, "reviews": 1}
@@ -356,6 +359,7 @@ def footer(depth: int, *, rooted: bool = False) -> str:
   <div class="wrap">
     Витрина публикует готовые рейтинги, здесь их не считает.
     <a href="{e(href(depth, "metodika/", rooted=rooted))}">Методика</a>.
+    <a href="{e(href(depth, "kontakty/", rooted=rooted))}">Контакты</a>.
   </div>
 </footer>"""
 
@@ -573,7 +577,37 @@ def depth_pills() -> str:
 </nav>"""
 
 
-def top3_html(rows: list[dict], kind: str) -> str:
+def company_anchor(company_id: str) -> str:
+    return f"company-{company_id}"
+
+
+def top1_href(depth: int, company_id: str, *, on_hub: bool = False, rooted: bool = False) -> str:
+    fragment = f"#{company_anchor(company_id)}"
+    if on_hub:
+        return fragment
+    return href(depth, "kaliningrad/", rooted=rooted) + fragment
+
+
+def top1_name_html(
+    row: dict, depth: int, *, on_hub: bool = False, rooted: bool = False
+) -> str:
+    name = e(row["name"])
+    if int(row["place"]) != 1:
+        return name
+    cid = row.get("company_id")
+    if not isinstance(cid, str) or not cid:
+        return name
+    return f'<a href="{e(top1_href(depth, cid, on_hub=on_hub, rooted=rooted))}">{name}</a>'
+
+
+def top3_html(
+    rows: list[dict],
+    kind: str,
+    depth: int = 0,
+    *,
+    on_hub: bool = False,
+    rooted: bool = False,
+) -> str:
     decimals = SCORE_DECIMALS[kind]
     cards = []
     for row in rows[:3]:
@@ -583,11 +617,12 @@ def top3_html(rows: list[dict], kind: str) -> str:
         extra = (
             '<span class="stars" aria-hidden="true">' + STAR * 3 + "</span>" if p == 1 else ""
         )
+        name_html = top1_name_html(row, depth, on_hub=on_hub, rooted=rooted)
         cards.append(
             f'<article class="card place-card" data-p="{p}">'
             f'<div class="place-head"><div class="place-num">Место {e(p)}</div>'
             f'<span class="trophy">{CUP}</span></div>'
-            f'<div class="place-name">{e(row["name"])}</div>{extra}'
+            f'<div class="place-name">{name_html}</div>{extra}'
             f"{score_html}"
             f'<div class="score-label">балл</div></article>'
         )
@@ -624,7 +659,15 @@ def cards_html(rows: list[dict]) -> str:
     return f'<section id="cards-top-10" class="cards">{"".join(articles)}</section>'
 
 
-def table_html(rows: list[dict], kind: str, note: str | None = None) -> str:
+def table_html(
+    rows: list[dict],
+    kind: str,
+    note: str | None = None,
+    depth: int = 0,
+    *,
+    on_hub: bool = False,
+    rooted: bool = False,
+) -> str:
     if not rows:
         return ""
     decimals = SCORE_DECIMALS[kind]
@@ -639,9 +682,10 @@ def table_html(rows: list[dict], kind: str, note: str | None = None) -> str:
         score_cell = e(score) if score is not None else "—"
         top_cls = ' class="is-top"' if row["place"] <= 3 else ""
         cup = CUP if row["place"] <= 3 else ""
+        name_html = top1_name_html(row, depth, on_hub=on_hub, rooted=rooted)
         body_rows.append(
             f"<tr{top_cls}{row_id}><td class=\"num\"><span class=\"rank\">{cup}{e(row['place'])}</span></td>"
-            f"<td>{e(row['name'])}</td>"
+            f"<td>{name_html}</td>"
             f"<td class=\"num\">{score_cell}</td></tr>"
         )
     note_html = note or "Места в таблице не продаются. Таблица — не реклама."
@@ -671,6 +715,7 @@ def ranking_body(
     table_note: str | None = None,
     kicker_icon: str = "",
     facts: str = "",
+    on_hub: bool = False,
 ) -> str:
     first = rows[0] if rows else None
     first_line = ""
@@ -688,10 +733,10 @@ def ranking_body(
 <p class="lead">{e(lead)}{first_line}</p>
 {facts}
 {depth_pills()}
-{top3_html(rows, kind)}
+{top3_html(rows, kind, depth, on_hub=on_hub)}
 {trust_html(depth, date_human)}
 {cards_html(rows)}
-{table_html(rows, kind, table_note)}
+{table_html(rows, kind, table_note, depth, on_hub=on_hub)}
 {extra}"""
 
 
@@ -861,6 +906,44 @@ def md_table_html(lines: list[str]) -> str:
         f"<tbody>{''.join(body_html)}</tbody>"
         "</table></div>"
     )
+
+
+def public_markdown(src: str) -> str:
+    """Authors/article for the vitrine: drop lock notes, legal name instead of Rentprog."""
+    text = LOCK_LINE_RE.sub("", src)
+    text = text.replace("Rentprog", RENTPROG_MD)
+    return text.strip()
+
+
+def inject_company_heading_ids(html_out: str, rows: list[dict]) -> str:
+    """id=company-{id} on the first article heading that names each research top-3."""
+    for row in rows[:3]:
+        cid = row["company_id"]
+        name = row["name"]
+        if not cid or not name:
+            continue
+        replaced = False
+
+        def replacer(match: re.Match, *, cid=cid, name=name) -> str:
+            nonlocal replaced
+            if replaced:
+                return match.group(0)
+            inner = match.group(3)
+            visible = re.sub(r"<[^>]+>", "", inner)
+            if name not in visible:
+                return match.group(0)
+            attrs = match.group(2)
+            if re.search(r"\sid=", attrs):
+                return match.group(0)
+            replaced = True
+            return f'<{match.group(1)} id="{e(company_anchor(cid))}"{attrs}>{inner}</{match.group(1)}>'
+
+        html_out = re.sub(
+            r"<(h[23])([^>]*)>([\s\S]*?)</\1>",
+            replacer,
+            html_out,
+        )
+    return html_out
 
 
 def md_to_html(src: str) -> str:
@@ -1052,8 +1135,11 @@ def build_home(pkg: dict, date_human: str, research: list[dict]) -> str:
 
 def build_hub(pkg: dict, date_human: str, research: list[dict]) -> str:
     as_of = pkg["as_of"]
-    article = md_to_html(package_markdown(pkg, "article"))
-    authors = md_to_html(package_markdown(pkg, "authors"))
+    article = inject_company_heading_ids(
+        md_to_html(public_markdown(package_markdown(pkg, "article"))),
+        research,
+    )
+    authors = md_to_html(public_markdown(package_markdown(pkg, "authors")))
     extra = (
         f'<section class="card article" id="statya">{article}</section>'
         f'<section class="card authors" id="avtory">{authors}</section>'
@@ -1074,6 +1160,7 @@ def build_hub(pkg: dict, date_human: str, research: list[dict]) -> str:
         "research",
         extra=extra,
         facts=facts,
+        on_hub=True,
     )
     return page(
         1,
@@ -1118,6 +1205,34 @@ def build_metodika(date_human: str, method_version: str | None, as_of: str) -> s
             f"Как считали исследование, запросы и отзовики. На {date_human}.{version_bit}"
         ),
         canonical_path="metodika/",
+    )
+
+
+def build_kontakty(date_human: str, as_of: str) -> str:
+    rentprog = "https://rentprog.ru"
+    body = f"""<p class="kicker">Контакты</p>
+<h1>Контакты</h1>
+<p class="lead">Сайт готовит <a href="{e(rentprog)}" rel="nofollow noopener">ООО «Рентпрог»</a>.</p>
+<section class="card contacts">
+  <p><a href="{e(rentprog)}" rel="nofollow noopener">{e(rentprog)}</a></p>
+  <h2>Авторы рейтинга</h2>
+  <ul>
+    <li>Иван Сасько</li>
+    <li>Рустам Урманов</li>
+    <li>Виктор Федотов</li>
+  </ul>
+</section>"""
+    return page(
+        1,
+        f"{title_base(as_of)} — контакты",
+        "",
+        date_human,
+        body,
+        description=(
+            f"Топ компаний по аренде автомобилей в {CITY_PREP} {as_of[:4]} — контакты. "
+            f"ООО «Рентпрог». На {date_human}."
+        ),
+        canonical_path="kontakty/",
     )
 
 
@@ -1209,6 +1324,7 @@ def main() -> None:
         ),
     )
     write(ROOT / "metodika" / "index.html", build_metodika(date_human, method_version, pkg["as_of"]))
+    write(ROOT / "kontakty" / "index.html", build_kontakty(date_human, pkg["as_of"]))
     write(ROOT / "404.html", build_404(date_human, pkg["as_of"]))
     write_robots()
     write_sitemap(pkg["as_of"])
