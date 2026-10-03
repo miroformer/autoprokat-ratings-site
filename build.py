@@ -69,10 +69,16 @@ INDEX_PATHS = (
     "kaliningrad/zaprosy/",
     "kaliningrad/otzyvy/",
     "metodika/",
+    "kontakty/",
 )
 
-PUBLIC_FILES = ("index.html", "404.html", "robots.txt")
-PUBLIC_DIRS = ("assets", "kaliningrad", "metodika")
+PUBLIC_FILES = ("index.html", "404.html", "robots.txt", "llms.txt")
+PUBLIC_DIRS = ("assets", "kaliningrad", "metodika", "kontakty")
+LOCK_LINE_RE = re.compile(r"(?m)^Лок\s+\d{4}-\d{2}-\d{2}:[^\n]*(?:\n|$)")
+RENTPROG_MD = "[ООО «Рентпрог»](https://rentprog.ru)"
+RENTPROG_URL = "https://rentprog.ru"
+RENTPROG_EMAIL = "a.c@live.ru"
+AMIGO_SITE = "https://amigorent.ru/"
 
 RESEARCH_PUBLISHED = True
 SCORE_DECIMALS = {"research": 2, "wordstat": 1, "reviews": 1}
@@ -356,6 +362,7 @@ def footer(depth: int, *, rooted: bool = False) -> str:
   <div class="wrap">
     Витрина публикует готовые рейтинги, здесь их не считает.
     <a href="{e(href(depth, "metodika/", rooted=rooted))}">Методика</a>.
+    <a href="{e(href(depth, "kontakty/", rooted=rooted))}">Контакты</a>.
   </div>
 </footer>"""
 
@@ -449,6 +456,44 @@ def head_tags(
     return "\n  ".join(tags)
 
 
+def jsonld_script(data: dict) -> str:
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    payload = payload.replace("<", "\\u003c")
+    return f'<script type="application/ld+json">{payload}</script>'
+
+
+def organization_ld() -> dict:
+    return {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "ООО «Рентпрог»",
+        "url": RENTPROG_URL,
+        "email": RENTPROG_EMAIL,
+    }
+
+
+def article_ld(pkg: dict) -> dict:
+    as_of = pkg["as_of"]
+    return {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": title_base(as_of),
+        "datePublished": as_of,
+        "dateModified": as_of,
+        "inLanguage": "ru-RU",
+        "author": {
+            "@type": "Organization",
+            "name": "ООО «Рентпрог»",
+            "url": RENTPROG_URL,
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "ООО «Рентпрог»",
+            "url": RENTPROG_URL,
+        },
+    }
+
+
 def page(
     depth: int,
     title: str,
@@ -460,6 +505,7 @@ def page(
     canonical_path: str,
     indexable: bool = True,
     rooted: bool = False,
+    jsonld: list[dict] | None = None,
 ) -> str:
     extra_head = head_tags(
         title=title,
@@ -471,12 +517,16 @@ def page(
     )
     banner = BANNER_HTML.strip()
     banner_block = f"{banner}\n" if banner else ""
+    ld_items = jsonld if jsonld is not None else [organization_ld()]
+    ld_html = ""
+    if ld_items:
+        ld_html = "\n  " + "\n  ".join(jsonld_script(item) for item in ld_items)
     return f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  {extra_head}
+  {extra_head}{ld_html}
   <link rel="stylesheet" href="{e(css_href(depth, rooted=rooted))}">
 </head>
 <body>
@@ -494,6 +544,40 @@ def page(
 def write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def write_llms(
+    pkg: dict, research: list[dict], wordstat: list[dict], reviews: list[dict]
+) -> None:
+    as_of = pkg["as_of"]
+    date_human = format_date(as_of)
+    r1, w1, o1 = research[0], wordstat[0], reviews[0]
+    r_score = format_score(r1["score"], SCORE_DECIMALS["research"])
+    w_score = format_score(w1["score"], SCORE_DECIMALS["wordstat"])
+    o_score = format_score(o1["score"], SCORE_DECIMALS["reviews"])
+    write(
+        ROOT / "llms.txt",
+        (
+            f"# {SITE_NAME}\n\n"
+            "Витрина публикует готовые рейтинги автопрокатов. Здесь их не считает.\n"
+            f"Срез: {as_of} ({date_human}). Регион: Калининград.\n"
+            f"Издатель: ООО «Рентпрог». {RENTPROG_URL}\n"
+            f"Почта: {RENTPROG_EMAIL}\n\n"
+            "## Страницы\n\n"
+            "- / — оглавление. Федерального топа нет.\n"
+            f"- /kaliningrad/ — исследование. {len(research)} компаний. "
+            f"1-е место: {r1['name']}, балл {r_score}.\n"
+            f"- /kaliningrad/zaprosy/ — брендовые запросы. {len(wordstat)} компаний. "
+            f"1-е место: {w1['name']}, балл {w_score}. "
+            "100 — наибольший спрос в этом срезе.\n"
+            f"- /kaliningrad/otzyvy/ — отзывы на картах. {len(reviews)} компаний. "
+            f"1-е место: {o1['name']}, балл {o_score}.\n"
+            "- /metodika/ — как считали исследование, запросы и отзовики.\n"
+            "- /kontakty/ — издатель ООО «Рентпрог».\n"
+            "- /404.html — страница не найдена.\n\n"
+            "Отдельных URL компаний нет. Места в таблице не продаются.\n"
+        ),
+    )
 
 
 def stage_public(dest: Path) -> Path:
@@ -573,7 +657,59 @@ def depth_pills() -> str:
 </nav>"""
 
 
-def top3_html(rows: list[dict], kind: str) -> str:
+def company_anchor(company_id: str) -> str:
+    return f"company-{company_id}"
+
+
+def article_company_sites(article_md: str) -> dict[str, str]:
+    """URLs already written in the snapshot article. Do not invent domains."""
+    out: dict[str, str] = {}
+    for m in re.finditer(r"\[([^\]]+)\]\((https?://[^)]+)\)", article_md):
+        label = m.group(1).strip()
+        url = m.group(2).strip()
+        if not label or not HTTP_URL_RE.match(url) or "javascript:" in url.lower():
+            continue
+        out[label] = url
+    return out
+
+
+def top1_url_map(row_lists: list[list[dict]], article_md: str) -> dict[str, str]:
+    by_name = article_company_sites(article_md)
+    out: dict[str, str] = {}
+    for rows in row_lists:
+        if not rows:
+            continue
+        row = rows[0]
+        cid = row.get("company_id")
+        if not isinstance(cid, str) or not cid:
+            continue
+        if cid == "amigo":
+            out[cid] = AMIGO_SITE
+            continue
+        name = row.get("name")
+        if isinstance(name, str) and name in by_name:
+            out[cid] = by_name[name]
+    return out
+
+
+def top1_name_html(row: dict, top1_urls: dict[str, str] | None = None) -> str:
+    name = e(row["name"])
+    if int(row["place"]) != 1:
+        return name
+    cid = row.get("company_id")
+    url = (top1_urls or {}).get(cid) if isinstance(cid, str) else None
+    if not url:
+        return name
+    return f'<a href="{e(url)}" rel="nofollow noopener">{name}</a>'
+
+
+def top3_html(
+    rows: list[dict],
+    kind: str,
+    depth: int = 0,
+    *,
+    top1_urls: dict[str, str] | None = None,
+) -> str:
     decimals = SCORE_DECIMALS[kind]
     cards = []
     for row in rows[:3]:
@@ -583,11 +719,12 @@ def top3_html(rows: list[dict], kind: str) -> str:
         extra = (
             '<span class="stars" aria-hidden="true">' + STAR * 3 + "</span>" if p == 1 else ""
         )
+        name_html = top1_name_html(row, top1_urls)
         cards.append(
             f'<article class="card place-card" data-p="{p}">'
             f'<div class="place-head"><div class="place-num">Место {e(p)}</div>'
             f'<span class="trophy">{CUP}</span></div>'
-            f'<div class="place-name">{e(row["name"])}</div>{extra}'
+            f'<div class="place-name">{name_html}</div>{extra}'
             f"{score_html}"
             f'<div class="score-label">балл</div></article>'
         )
@@ -624,7 +761,14 @@ def cards_html(rows: list[dict]) -> str:
     return f'<section id="cards-top-10" class="cards">{"".join(articles)}</section>'
 
 
-def table_html(rows: list[dict], kind: str, note: str | None = None) -> str:
+def table_html(
+    rows: list[dict],
+    kind: str,
+    note: str | None = None,
+    depth: int = 0,
+    *,
+    top1_urls: dict[str, str] | None = None,
+) -> str:
     if not rows:
         return ""
     decimals = SCORE_DECIMALS[kind]
@@ -639,9 +783,10 @@ def table_html(rows: list[dict], kind: str, note: str | None = None) -> str:
         score_cell = e(score) if score is not None else "—"
         top_cls = ' class="is-top"' if row["place"] <= 3 else ""
         cup = CUP if row["place"] <= 3 else ""
+        name_html = top1_name_html(row, top1_urls)
         body_rows.append(
             f"<tr{top_cls}{row_id}><td class=\"num\"><span class=\"rank\">{cup}{e(row['place'])}</span></td>"
-            f"<td>{e(row['name'])}</td>"
+            f"<td>{name_html}</td>"
             f"<td class=\"num\">{score_cell}</td></tr>"
         )
     note_html = note or "Места в таблице не продаются. Таблица — не реклама."
@@ -671,6 +816,7 @@ def ranking_body(
     table_note: str | None = None,
     kicker_icon: str = "",
     facts: str = "",
+    top1_urls: dict[str, str] | None = None,
 ) -> str:
     first = rows[0] if rows else None
     first_line = ""
@@ -688,11 +834,25 @@ def ranking_body(
 <p class="lead">{e(lead)}{first_line}</p>
 {facts}
 {depth_pills()}
-{top3_html(rows, kind)}
+{top3_html(rows, kind, depth, top1_urls=top1_urls)}
 {trust_html(depth, date_human)}
 {cards_html(rows)}
-{table_html(rows, kind, table_note)}
+{table_html(rows, kind, table_note, depth, top1_urls=top1_urls)}
 {extra}"""
+
+
+def is_safe_href(url: str) -> bool:
+    if not url or "javascript:" in url.lower() or "data:" in url.lower() or "\\" in url:
+        return False
+    if HTTP_URL_RE.match(url):
+        return True
+    if url.startswith("#") and re.fullmatch(r"#[A-Za-z0-9._-]+", url):
+        return True
+    if url.startswith(("../", "./")) or re.fullmatch(
+        r"[A-Za-z0-9][A-Za-z0-9./_-]*/?(?:#[A-Za-z0-9._-]+)?", url
+    ):
+        return True
+    return False
 
 
 def md_inline(text: str) -> str:
@@ -703,8 +863,13 @@ def md_inline(text: str) -> str:
         m = re.match(r"\[([^\]]+)\]\(([^)]+)\)", text[i:])
         if m:
             label, url = m.group(1), m.group(2).strip()
-            if HTTP_URL_RE.match(url) and "javascript:" not in url.lower():
-                parts.append(f'<a href="{e(url)}" rel="nofollow noopener">{e(label)}</a>')
+            if is_safe_href(url):
+                if HTTP_URL_RE.match(url):
+                    parts.append(
+                        f'<a href="{e(url)}" rel="nofollow noopener">{e(label)}</a>'
+                    )
+                else:
+                    parts.append(f'<a href="{e(url)}">{e(label)}</a>')
             else:
                 parts.append(e(label))
             i += m.end()
@@ -861,6 +1026,68 @@ def md_table_html(lines: list[str]) -> str:
         f"<tbody>{''.join(body_html)}</tbody>"
         "</table></div>"
     )
+
+
+def public_markdown(src: str) -> str:
+    """Authors/article for the vitrine: drop lock notes, legal name instead of Rentprog."""
+    text = LOCK_LINE_RE.sub("", src)
+    text = text.replace("Rentprog", RENTPROG_MD)
+    return text.strip()
+
+
+def link_first_phrase(md: str, phrase: str, url: str) -> str:
+    idx = md.find(phrase)
+    if idx < 0:
+        return md
+    before = md[:idx]
+    if re.search(r"\[[^\]]*$", before):
+        return md
+    return md[:idx] + f"[{phrase}]({url})" + md[idx + len(phrase) :]
+
+
+def article_cross_links(md: str, depth: int) -> str:
+    """Existing public URLs only. No company pages."""
+    md = link_first_phrase(md, "Как мы оценивали прокаты", href(depth, "metodika/"))
+    md = link_first_phrase(
+        md, "как часто бренд ищут по имени", href(depth, "kaliningrad/zaprosy/")
+    )
+    md = link_first_phrase(
+        md, "Яндекс Картах, Google Maps и 2ГИС", href(depth, "kaliningrad/otzyvy/")
+    )
+    md = link_first_phrase(md, "составителей рейтинга", href(depth, "kontakty/"))
+    md = md.replace("## Авторы", f"## [Авторы]({href(depth, 'kontakty/')})", 1)
+    return md
+
+
+def inject_company_heading_ids(html_out: str, rows: list[dict]) -> str:
+    """id=company-{id} on the first article heading that names each research top-3."""
+    for row in rows[:3]:
+        cid = row["company_id"]
+        name = row["name"]
+        if not cid or not name:
+            continue
+        replaced = False
+
+        def replacer(match: re.Match, *, cid=cid, name=name) -> str:
+            nonlocal replaced
+            if replaced:
+                return match.group(0)
+            inner = match.group(3)
+            visible = re.sub(r"<[^>]+>", "", inner)
+            if name not in visible:
+                return match.group(0)
+            attrs = match.group(2)
+            if re.search(r"\sid=", attrs):
+                return match.group(0)
+            replaced = True
+            return f'<{match.group(1)} id="{e(company_anchor(cid))}"{attrs}>{inner}</{match.group(1)}>'
+
+        html_out = re.sub(
+            r"<(h[23])([^>]*)>([\s\S]*?)</\1>",
+            replacer,
+            html_out,
+        )
+    return html_out
 
 
 def md_to_html(src: str) -> str:
@@ -1050,10 +1277,16 @@ def build_home(pkg: dict, date_human: str, research: list[dict]) -> str:
     )
 
 
-def build_hub(pkg: dict, date_human: str, research: list[dict]) -> str:
+def build_hub(
+    pkg: dict,
+    date_human: str,
+    research: list[dict],
+    top1_urls: dict[str, str] | None = None,
+) -> str:
     as_of = pkg["as_of"]
-    article = md_to_html(package_markdown(pkg, "article"))
-    authors = md_to_html(package_markdown(pkg, "authors"))
+    article_md = article_cross_links(public_markdown(package_markdown(pkg, "article")), 1)
+    article = inject_company_heading_ids(md_to_html(article_md), research)
+    authors = md_to_html(public_markdown(package_markdown(pkg, "authors")))
     extra = (
         f'<section class="card article" id="statya">{article}</section>'
         f'<section class="card authors" id="avtory">{authors}</section>'
@@ -1074,6 +1307,7 @@ def build_hub(pkg: dict, date_human: str, research: list[dict]) -> str:
         "research",
         extra=extra,
         facts=facts,
+        top1_urls=top1_urls,
     )
     return page(
         1,
@@ -1083,6 +1317,7 @@ def build_hub(pkg: dict, date_human: str, research: list[dict]) -> str:
         body,
         description=ranking_description("research", date_human, research, as_of),
         canonical_path="kaliningrad/",
+        jsonld=[organization_ld(), article_ld(pkg)],
     )
 
 
@@ -1121,6 +1356,34 @@ def build_metodika(date_human: str, method_version: str | None, as_of: str) -> s
     )
 
 
+def build_kontakty(date_human: str, as_of: str) -> str:
+    body = f"""<p class="kicker">Контакты</p>
+<h1>Контакты</h1>
+<p class="lead"><a href="{e(RENTPROG_URL)}" rel="nofollow noopener">ООО «Рентпрог»</a> — издатель рейтингов автопрокатов. Витрина публикует готовые срезы, баллы здесь не считает.</p>
+<section class="card contacts">
+  <p><a href="{e(RENTPROG_URL)}" rel="nofollow noopener">{e(RENTPROG_URL)}</a></p>
+  <p><a href="mailto:{e(RENTPROG_EMAIL)}">{e(RENTPROG_EMAIL)}</a></p>
+  <h2>Авторы рейтинга</h2>
+  <ul>
+    <li>Иван Сасько</li>
+    <li>Рустам Урманов</li>
+    <li>Виктор Федотов</li>
+  </ul>
+</section>"""
+    return page(
+        1,
+        f"{title_base(as_of)} — контакты",
+        "",
+        date_human,
+        body,
+        description=(
+            f"Топ компаний по аренде автомобилей в {CITY_PREP} {as_of[:4]} — контакты. "
+            f"ООО «Рентпрог», издатель рейтингов. На {date_human}."
+        ),
+        canonical_path="kontakty/",
+    )
+
+
 def build_404(date_human: str, as_of: str) -> str:
     home = href(0, "", rooted=True)
     body = f"""<p class="kicker">Ошибка</p>
@@ -1154,8 +1417,11 @@ def main() -> None:
     if not research or not wordstat or not reviews:
         raise ValueError("published tables must not be empty")
 
+    article_md = package_markdown(pkg, "article")
+    top1_urls = top1_url_map([research, wordstat, reviews], article_md)
+
     write(ROOT / "index.html", build_home(pkg, date_human, research))
-    write(ROOT / "kaliningrad" / "index.html", build_hub(pkg, date_human, research))
+    write(ROOT / "kaliningrad" / "index.html", build_hub(pkg, date_human, research, top1_urls))
     method_version = pkg.get("methodology_version")
     if not isinstance(method_version, str) or not method_version.strip():
         method_version = None
@@ -1182,6 +1448,7 @@ def main() -> None:
                     "100 — наибольший спрос в этом срезе."
                 ),
                 kicker_icon=SEARCH,
+                top1_urls=top1_urls,
             ),
             description=ranking_description("zaprosy", date_human, wordstat, pkg["as_of"]),
             canonical_path="kaliningrad/zaprosy/",
@@ -1203,13 +1470,16 @@ def main() -> None:
                 date_human,
                 "reviews",
                 kicker_icon=REVIEWS_ICO,
+                top1_urls=top1_urls,
             ),
             description=ranking_description("otzyvy", date_human, reviews, pkg["as_of"]),
             canonical_path="kaliningrad/otzyvy/",
         ),
     )
     write(ROOT / "metodika" / "index.html", build_metodika(date_human, method_version, pkg["as_of"]))
+    write(ROOT / "kontakty" / "index.html", build_kontakty(date_human, pkg["as_of"]))
     write(ROOT / "404.html", build_404(date_human, pkg["as_of"]))
+    write_llms(pkg, research, wordstat, reviews)
     write_robots()
     write_sitemap(pkg["as_of"])
     print(
