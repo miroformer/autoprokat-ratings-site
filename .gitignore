@@ -10,3 +10,5 @@ id_ed25519
 .aws/
 authorized_key.json
 yc-sa*.json
+public-site/
+_site/

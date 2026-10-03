@@ -4,7 +4,7 @@
 
 Места и баллы — из полных markdown-таблиц: `docs/site-export/wordstat-ranking-table.md` (запросы) и `docs/site-export/reviews-ranking-table.md` (отзывы). `ranking-table.md` — тот же список отзывов, не читаем. 10-строчный `package-2026-09-26.json` не источник мест; дата среза из пакета. Исследование не публикуем.
 
-Превью GitHub Pages закрыто от индекса: `noindex, nofollow` и `robots.txt` Disallow. Sitemap на этом хосте не публикуем.
+Превью GitHub Pages закрыто от индекса: `noindex, nofollow` и `robots.txt` Disallow. Sitemap на этом хосте не публикуем. В опубликованное дерево (артефакт `public-site` и, пока Pages собирает ветку, `_config.yml` exclude) не входят `data/`, `docs/`, JSON среза.
 
 ## Страницы
 

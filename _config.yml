@@ -1,0 +1,11 @@
+# GitHub Pages still publishes from the main branch (legacy Jekyll).
+# This is not a Jekyll app and has no theme. Exclude keeps snapshot JSON,
+# docs, and media off the preview host. HTML is copied through as-is.
+exclude:
+  - data
+  - docs
+  - media
+  - build.py
+  - check_build.py
+  - README.md
+  - public-site

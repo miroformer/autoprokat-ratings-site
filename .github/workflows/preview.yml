@@ -21,19 +21,33 @@ jobs:
         run: python3 build.py
       - name: Check preview guards
         run: python3 check_build.py
-      - name: Stage public files only
+      - uses: actions/configure-pages@v5
+      - name: Check Jekyll Pages output has no snapshot JSON
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./
+          destination: ./_site
+      - name: Assert Jekyll public tree
         run: |
-          mkdir -p public-site
-          cp index.html robots.txt .nojekyll 404.html public-site/
-          cp -a assets kaliningrad metodika public-site/
-          if find public-site -name '*.json' | grep -q .; then
+          test ! -e _site/data
+          test ! -e _site/docs
+          test ! -e _site/media
+          test -f _site/404.html
+          test -f _site/index.html
+          test -f _site/assets/style.css
+          test -f _site/kaliningrad/zaprosy/index.html
+          if find _site -name '*.json' | grep -q .; then
             echo "snapshot JSON must not be a site page"
             exit 1
           fi
-          if find public-site -name '*ranking-table.md' | grep -q .; then
-            echo "ranking markdown must not be a site page"
+          if grep -q toc-grid _site/404.html; then
+            echo "404 must not be index.html fallback"
             exit 1
           fi
+      - name: Stage public files only
+        run: python3 -c "from pathlib import Path; import build; build.stage_public(Path('public-site'))"
+      - name: Stage public files only
+        run: python3 -c "from pathlib import Path; import build; build.stage_public(Path('public-site'))"
       - uses: actions/upload-artifact@v4
         with:
           name: public-site
