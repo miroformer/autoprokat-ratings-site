@@ -6,7 +6,9 @@ from __future__ import annotations
 import html
 import json
 import re
+import shutil
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data" / "site-export"
@@ -60,6 +62,10 @@ INDEX_PATHS = (
     "metodika/",
 )
 
+# Files GitHub Pages / the bucket may host. Snapshot JSON and docs stay in git, not here.
+PUBLIC_FILES = ("index.html", "404.html", "robots.txt")
+PUBLIC_DIRS = ("assets", "kaliningrad", "metodika")
+
 # Research table is unpublished. Never render it on pages, even if JSON has the key.
 RESEARCH_PUBLISHED = False
 
@@ -85,6 +91,18 @@ def is_preview() -> bool:
 
 def site_origin() -> str:
     return PROD_ORIGIN.rstrip("/") if PROD_ORIGIN else PREVIEW_ORIGIN
+
+
+def url_base_path() -> str:
+    return urlparse(site_origin()).path.rstrip("/")
+
+
+def root_href(path: str) -> str:
+    """Site-root URL. Needed on 404.html: the browser stays on the missing path."""
+    base = url_base_path()
+    if not path:
+        return f"{base}/" if base else "/"
+    return f"{base}/{path.lstrip('/')}"
 
 
 def e(value) -> str:
@@ -208,11 +226,15 @@ def parse_ranking_table(path: Path) -> list[dict]:
     return out
 
 
-def css_href(depth: int) -> str:
+def css_href(depth: int, *, rooted: bool = False) -> str:
+    if rooted:
+        return root_href("assets/style.css")
     return "../" * depth + "assets/style.css"
 
 
-def href(depth: int, path: str) -> str:
+def href(depth: int, path: str, *, rooted: bool = False) -> str:
+    if rooted:
+        return root_href(path)
     if path == "":
         return "./" if depth == 0 else "../" * depth
     return "../" * depth + path
@@ -235,13 +257,13 @@ def logo_svg() -> str:
     )
 
 
-def header(depth: int, active: str, date_human: str) -> str:
+def header(depth: int, active: str, date_human: str, *, rooted: bool = False) -> str:
     items = [
-        ("home", href(depth, ""), "Оглавление"),
-        ("hub", href(depth, "kaliningrad/"), "Калининград"),
-        ("zaprosy", href(depth, "kaliningrad/zaprosy/"), "Запросы"),
-        ("otzyvy", href(depth, "kaliningrad/otzyvy/"), "Отзывы"),
-        ("metodika", href(depth, "metodika/"), "Методика"),
+        ("home", href(depth, "", rooted=rooted), "Оглавление"),
+        ("hub", href(depth, "kaliningrad/", rooted=rooted), "Калининград"),
+        ("zaprosy", href(depth, "kaliningrad/zaprosy/", rooted=rooted), "Запросы"),
+        ("otzyvy", href(depth, "kaliningrad/otzyvy/", rooted=rooted), "Отзывы"),
+        ("metodika", href(depth, "metodika/", rooted=rooted), "Методика"),
     ]
     pills = []
     for key, url, label in items:
@@ -249,7 +271,7 @@ def header(depth: int, active: str, date_human: str) -> str:
         pills.append(f'<a class="{cls}" href="{e(url)}">{e(label)}</a>')
     return f"""<header class="site-header">
   <div class="wrap">
-    <a class="brand" href="{e(href(depth, ""))}">
+    <a class="brand" href="{e(href(depth, "", rooted=rooted))}">
       <span class="logo-tile">{logo_svg()}</span>
       <span class="brand-text">
         <span class="brand-name">Рейтинги автопрокатов</span>
@@ -261,11 +283,11 @@ def header(depth: int, active: str, date_human: str) -> str:
 </header>"""
 
 
-def footer(depth: int) -> str:
+def footer(depth: int, *, rooted: bool = False) -> str:
     return f"""<footer class="site-footer">
   <div class="wrap">
     Витрина публикует готовые рейтинги, здесь их не считает.
-    <a href="{e(href(depth, "metodika/"))}">Методика</a>.
+    <a href="{e(href(depth, "metodika/", rooted=rooted))}">Методика</a>.
   </div>
 </footer>"""
 
@@ -279,6 +301,7 @@ def page(
     *,
     description: str,
     canonical_path: str,
+    rooted: bool = False,
 ) -> str:
     extra: list[str] = [
         f'<meta http-equiv="Content-Security-Policy" content="{CSP}">'
@@ -298,14 +321,14 @@ def page(
   {extra_head}
   <title>{e(title)}</title>
   <meta name="description" content="{e(description)}">
-  <link rel="stylesheet" href="{e(css_href(depth))}">
+  <link rel="stylesheet" href="{e(css_href(depth, rooted=rooted))}">
 </head>
 <body>
-{banner_block}{header(depth, active, date_human)}
+{banner_block}{header(depth, active, date_human, rooted=rooted)}
 <main class="wrap">
 {body}
 </main>
-{footer(depth)}
+{footer(depth, rooted=rooted)}
 </body>
 </html>
 """
@@ -314,6 +337,38 @@ def page(
 def write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def stage_public(dest: Path) -> Path:
+    """Copy only public HTML/CSS/assets. Snapshot JSON and docs stay out."""
+    dest = dest.resolve()
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True)
+    (dest / ".nojekyll").write_text("", encoding="utf-8")
+    for name in PUBLIC_FILES:
+        src = ROOT / name
+        if not src.is_file():
+            raise FileNotFoundError(f"missing public file {name}")
+        shutil.copy2(src, dest / name)
+    for name in PUBLIC_DIRS:
+        src = ROOT / name
+        if not src.is_dir():
+            raise FileNotFoundError(f"missing public dir {name}")
+        shutil.copytree(src, dest / name)
+    forbidden = []
+    for pattern in ("*.json", "*ranking-table.md", "sitemap.xml"):
+        forbidden.extend(dest.rglob(pattern))
+    if (dest / "data").exists():
+        forbidden.append(dest / "data")
+    if (dest / "docs").exists():
+        forbidden.append(dest / "docs")
+    if (dest / "media").exists():
+        forbidden.append(dest / "media")
+    if forbidden:
+        names = ", ".join(str(p.relative_to(dest)) for p in forbidden)
+        raise RuntimeError(f"non-public files staged: {names}")
+    return dest
 
 
 def write_robots() -> None:
@@ -736,9 +791,10 @@ def build_metodika(date_human: str) -> str:
 
 
 def build_404(date_human: str) -> str:
-    body = """<p class="kicker">Ошибка</p>
+    home = href(0, "", rooted=True)
+    body = f"""<p class="kicker">Ошибка</p>
 <h1>Страница не найдена</h1>
-<p class="lead">Такой страницы нет. <a href="./">К оглавлению</a>.</p>"""
+<p class="lead">Такой страницы нет. <a href="{e(home)}">К оглавлению</a>.</p>"""
     return page(
         0,
         "Страница не найдена",
@@ -747,6 +803,7 @@ def build_404(date_human: str) -> str:
         body,
         description="Такой страницы нет.",
         canonical_path="",
+        rooted=True,
     )
 
 

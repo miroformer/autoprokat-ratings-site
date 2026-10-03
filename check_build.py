@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import re
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -93,6 +95,31 @@ def main() -> None:
     except ValueError:
         pass
 
+    def resolve_href(page: Path, href: str) -> Path | None:
+        path_part = href.split("#", 1)[0]
+        if not path_part or path_part.startswith(("http://", "https://", "mailto:")):
+            return None
+        root = ROOT.resolve()
+        if path_part.startswith("/"):
+            base = site.url_base_path()
+            if base:
+                if path_part in (base, f"{base}/"):
+                    rel = ""
+                elif path_part.startswith(base + "/"):
+                    rel = path_part[len(base) + 1 :]
+                else:
+                    fail(f"{page.relative_to(ROOT)} href {href} misses preview base path")
+            else:
+                rel = path_part.lstrip("/")
+            candidate = (ROOT / rel).resolve()
+        else:
+            candidate = (page.parent / path_part).resolve()
+        if candidate != root and root not in candidate.parents:
+            fail(f"{page.relative_to(ROOT)} href {href} leaves the repo")
+        if candidate.is_dir() or path_part.endswith("/"):
+            candidate = candidate / "index.html"
+        return candidate
+
     for path in PAGES:
         if not path.is_file():
             fail(f"missing {path.relative_to(ROOT)}")
@@ -117,8 +144,64 @@ def main() -> None:
             fail(f"publisher legal name on {path.relative_to(ROOT)}")
         if "ваша реклама" in text.lower() or 'class="banner"' in text or "id=\"banner\"" in text:
             fail(f"empty banner rendered on {path.relative_to(ROOT)}")
-        if "<base " in text.lower():
+        if "base href" in text.lower() or "<base " in text.lower():
             fail(f"base href on {path.relative_to(ROOT)}")
+        if ".json" in text.lower() or "site-export" in text:
+            fail(f"generated page must not point at snapshot files: {path.relative_to(ROOT)}")
+
+        for href in re.findall(r'href="([^"]+)"', text):
+            target = resolve_href(path, href)
+            if target is None:
+                continue
+            if not target.is_file():
+                fail(f"broken link {href} on {path.relative_to(ROOT)}")
+
+    home = (ROOT / "index.html").read_text(encoding="utf-8")
+    if 'href="assets/style.css"' not in home:
+        fail("index must keep relative CSS")
+
+    notfound = (ROOT / "404.html").read_text(encoding="utf-8")
+    css_rooted = site.root_href("assets/style.css")
+    if f'href="{css_rooted}"' not in notfound:
+        fail("404 CSS must be site-root so nested unknown URLs still load styles")
+    if re.search(r'href="(?:\./)?assets/style\.css"', notfound):
+        fail("404 must not use depth-0 relative CSS")
+    if "toc-grid" in notfound or 'class="top3"' in notfound or 'class="table-block"' in notfound:
+        fail("404 must not be an index.html fallback")
+    if "Страница не найдена" not in notfound:
+        fail("404 must stay an error page")
+    home_rooted = site.root_href("")
+    if f'href="{home_rooted}"' not in notfound:
+        fail("404 nav must use site-root links")
+
+    config = (ROOT / "_config.yml").read_text(encoding="utf-8")
+    for name in ("data", "docs", "media"):
+        if not re.search(rf"(?m)^\s*-\s*{name}\s*$", config):
+            fail(f"_config.yml must exclude {name} from GitHub Pages")
+    if not re.search(r"(?m)^theme:\s*null\s*$", config):
+        fail("_config.yml must disable a Jekyll theme")
+    if "layout: null" not in config:
+        fail("_config.yml must not wrap pages in a layout")
+    if (ROOT / ".nojekyll").exists():
+        fail(".nojekyll skips Jekyll exclude; snapshot JSON would stay a Pages URL")
+
+    staged_dir = Path(tempfile.mkdtemp(prefix="public-site-"))
+    try:
+        staged = site.stage_public(staged_dir)
+        if list(staged.rglob("*.json")):
+            fail("staged site must not contain JSON")
+        if (staged / "data").exists() or (staged / "docs").exists() or (staged / "media").exists():
+            fail("staged site must not contain data/, docs/, or media/")
+        if not (staged / "404.html").is_file():
+            fail("staged site must keep 404.html")
+        if not (staged / ".nojekyll").is_file():
+            fail("staged artifact needs .nojekyll so a later Actions/bucket publish skips Jekyll")
+        if (staged / "404.html").read_text(encoding="utf-8") == (staged / "index.html").read_text(
+            encoding="utf-8"
+        ):
+            fail("error page must not be index.html")
+    finally:
+        shutil.rmtree(staged_dir, ignore_errors=True)
 
     hub = (ROOT / "kaliningrad" / "index.html").read_text(encoding="utf-8")
     if "place-card" in hub or "table-block" in hub or "depth-pills" in hub:

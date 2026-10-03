@@ -34,6 +34,7 @@ a:hover { text-decoration: underline; }
   max-width: 72rem;
   margin: 0 auto;
   padding: 0 1rem;
+  min-width: 0;
 }
 
 /* Баннер-слот: неширокая строка сверху. Пока пустой — не рендерить (нет высоты, нет CLS). */
@@ -232,14 +233,25 @@ h1 {
   padding-left: 1.1rem;
 }
 
-.table-block { margin: 0 0 1.5rem; }
+.table-block { margin: 0 0 1.5rem; max-width: 100%; min-width: 0; }
 
 .table-block h2 {
   margin: 0 0 0.85rem;
   font-size: 1.15rem;
 }
 
-.table-scroll { overflow-x: auto; }
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  max-width: 100%;
+}
+
+#top-3,
+#full-list,
+.table-scroll tr[id] {
+  scroll-margin-top: 5rem;
+}
 
 table {
   width: 100%;
