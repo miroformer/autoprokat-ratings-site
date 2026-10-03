@@ -44,17 +44,7 @@ jobs:
             echo "404 must not be index.html fallback"
             exit 1
           fi
-          python3 - <<'PY'
-from pathlib import Path
-text = Path("_site/index.html").read_text(encoding="utf-8")
-if not text.lstrip().startswith("<!DOCTYPE html>"):
-    raise SystemExit("Jekyll output lost our HTML doctype")
-if 'class="site-header"' not in text:
-    raise SystemExit("Jekyll output lost the site header")
-if "markdown-body" in text or "container-lg" in text:
-    raise SystemExit("Jekyll theme wrapped the pages")
-print("jekyll html unwrapped")
-PY
+          python3 -c 'from pathlib import Path; t=Path("_site/index.html").read_text(encoding="utf-8"); assert t.lstrip().startswith("<!DOCTYPE html>"); assert "site-header" in t; assert "markdown-body" not in t and "container-lg" not in t; print("jekyll html unwrapped")'
       - name: Stage public files only
         run: python3 -c "from pathlib import Path; import build; build.stage_public(Path('public-site'))"
       - uses: actions/upload-artifact@v4
