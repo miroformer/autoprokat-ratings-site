@@ -178,6 +178,10 @@ def main() -> None:
     for name in ("data", "docs", "media"):
         if not re.search(rf"(?m)^\s*-\s*{name}\s*$", config):
             fail(f"_config.yml must exclude {name} from GitHub Pages")
+    if not re.search(r"(?m)^theme:\s*null\s*$", config):
+        fail("_config.yml must disable a Jekyll theme")
+    if "layout: null" not in config:
+        fail("_config.yml must not wrap pages in a layout")
     if (ROOT / ".nojekyll").exists():
         fail(".nojekyll skips Jekyll exclude; snapshot JSON would stay a Pages URL")
 
